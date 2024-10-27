@@ -1,10 +1,12 @@
 import * as YAML from 'yaml';
 
 export type ParserInfo = {
-  website: string;
-  officialDocs: string;
-  abbreviation: string;
-  name: string;
+  providerWebsite: string;
+  providerName: string;
+  provieerNameAbbreviation: string;
+  languageOfficialDocs: string;
+  languageAbbreviation: string;
+  languageName: string;
   defaultParserConfig: DefaultParserConfig
 };
 

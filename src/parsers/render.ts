@@ -64,10 +64,12 @@ class RenderParser extends BaseParser {
 
   getInfo(): ParserInfo {
     return {
-      website: 'https://render.com/docs',
-      officialDocs: 'https://docs.render.com/infrastructure-as-code',
-      abbreviation: 'RND',
-      name: 'Render',
+      providerWebsite: 'https://render.com/docs',
+      providerName: 'Render',
+      provieerNameAbbreviation: 'RND',
+      languageOfficialDocs: 'https://docs.render.com/infrastructure-as-code',
+      languageAbbreviation: 'RND',
+      languageName: 'Render Blue Print',
       defaultParserConfig: defaultParserConfig
     };
   }

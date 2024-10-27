@@ -191,10 +191,12 @@ class CloudFormationParser extends BaseParser {
 
   getInfo(): ParserInfo {
     return {
-      website: 'https://aws.amazon.com/cloudformation/',
-      officialDocs: 'https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html',
-      abbreviation: 'CFN',
-      name: 'AWS CloudFormation',
+      providerWebsite: 'https://aws.amazon.com/cloudformation/',
+      providerName: 'Amazon Web Services',
+      provieerNameAbbreviation: 'AWS',      
+      languageOfficialDocs: 'https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html',
+      languageAbbreviation: 'CFN',
+      languageName: 'AWS CloudFormation',
       defaultParserConfig: defaultParserConfig
     };
   }
