@@ -15,9 +15,9 @@ function translate(dockerComposeContent: string, targetPlatform: string, templat
   try {
     const dockerCompose = YAML.parse(dockerComposeContent) as any;
 
-    const parser = parsers.find(parser => parser.getInfo().abbreviation.toLowerCase() === targetPlatform.toLowerCase());
+    const parser = parsers.find(parser => parser.getInfo().languageAbbreviation.toLowerCase() === targetPlatform.toLowerCase());
     if (!parser) {
-      throw new Error(`Unsupported target platform: ${targetPlatform}`);
+      throw new Error(`Unsupported target language: ${targetPlatform}`);
     }
 
     const translatedConfig = parser.parse(dockerCompose, templateFormat);
@@ -29,9 +29,9 @@ function translate(dockerComposeContent: string, targetPlatform: string, templat
 }
 
 function getParserInfo(targetPlatform: string): ParserInfo {
-  const parser = parsers.find(parser => parser.getInfo().abbreviation.toLowerCase() === targetPlatform.toLowerCase());
+  const parser = parsers.find(parser => parser.getInfo().languageAbbreviation.toLowerCase() === targetPlatform.toLowerCase());
   if (!parser) {
-    throw new Error(`Unsupported target platform: ${targetPlatform}`);
+    throw new Error(`Unsupported target language: ${targetPlatform}`);
   }
   return parser.getInfo();
 }
