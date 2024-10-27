@@ -11,13 +11,13 @@ const parsers: BaseParser[] = [
   // e.g., terraformParserInstance
 ];
 
-function translate(dockerComposeContent: string, targetPlatform: string, templateFormat?: TemplateFormat): any {
+function translate(dockerComposeContent: string, languageAbbreviation: string, templateFormat?: TemplateFormat): any {
   try {
     const dockerCompose = YAML.parse(dockerComposeContent) as any;
 
-    const parser = parsers.find(parser => parser.getInfo().languageAbbreviation.toLowerCase() === targetPlatform.toLowerCase());
+    const parser = parsers.find(parser => parser.getInfo().languageAbbreviation.toLowerCase() === languageAbbreviation.toLowerCase());
     if (!parser) {
-      throw new Error(`Unsupported target language: ${targetPlatform}`);
+      throw new Error(`Unsupported target language: ${languageAbbreviation}`);
     }
 
     const translatedConfig = parser.parse(dockerCompose, templateFormat);
@@ -28,10 +28,10 @@ function translate(dockerComposeContent: string, targetPlatform: string, templat
   }
 }
 
-function getParserInfo(targetPlatform: string): ParserInfo {
-  const parser = parsers.find(parser => parser.getInfo().languageAbbreviation.toLowerCase() === targetPlatform.toLowerCase());
+function getParserInfo(languageAbbreviation: string): ParserInfo {
+  const parser = parsers.find(parser => parser.getInfo().languageAbbreviation.toLowerCase() === languageAbbreviation.toLowerCase());
   if (!parser) {
-    throw new Error(`Unsupported target language: ${targetPlatform}`);
+    throw new Error(`Unsupported target language: ${languageAbbreviation}`);
   }
   return parser.getInfo();
 }
