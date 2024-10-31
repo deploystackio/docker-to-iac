@@ -7,7 +7,7 @@ A Node.js module to translate Docker Compose files into AWS CloudFormation and m
 First, install the module and its dependencies:
 
 ```sh
-npm i @deploymy/docker-to-iac
+npm i @deploystack/docker-to-iac
 ```
 
 ## Usage
@@ -15,7 +15,7 @@ npm i @deploymy/docker-to-iac
 ### Translating Docker Compose to AWS CloudFormation
 
 ```typescript
-import { translate } from '@deploymy/docker-to-iac';
+import { translate } from '@deploystack/docker-to-iac';
 import { readFileSync, writeFileSync } from 'fs';
 
 // Read Docker Compose file content as plain text
@@ -30,7 +30,7 @@ writeFileSync('output-aws.json', JSON.stringify(translatedConfig, null, 2));
 
 ## Documentation
 
-Please visit [docs.deploy.my](https://docs.deploy.my/docker-to-iac) to read full documentation.
+Please visit [docs.deploystack.io](https://docs.deploystack.io/docker-to-iac) to read full documentation.
 
 ## License
 
