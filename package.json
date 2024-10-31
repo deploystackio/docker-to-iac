@@ -1,5 +1,5 @@
 {
-  "name": "@deploymy/docker-to-iac",
+  "name": "@deploystack/docker-to-iac",
   "version": "0.0.0-development",
   "main": "dist/src/index.js",
   "scripts": {
@@ -10,8 +10,8 @@
   },
   "author": {
     "name": "Piotr Hajdas",
-    "email": "hello@deploy.my",
-    "url": "https://deploy.my"
+    "email": "hello@deploystack.io",
+    "url": "https://deploystack.io"
   },
   "files": [
     "dist",
@@ -21,9 +21,9 @@
     "access": "public"
   },
   "bugs": {
-    "url": "https://github.com/deploymy/docker-to-iac/issues"
+    "url": "https://github.com/deploystackio/docker-to-iac/issues"
   },
-  "homepage": "https://github.com/deploymy/docker-to-iac#readme",
+  "homepage": "https://github.com/deploystackio/docker-to-iac#readme",
   "keywords": [
     "Apache-2.0",
     "Infrastructure as Code",

@@ -30,7 +30,7 @@ class CloudFormationParser extends BaseParser {
     parameters['SubnetB'] = { Type: 'AWS::EC2::Subnet::Id' };
     parameters['ServiceName'] = { 
       Type: 'String',
-      Default: 'DeployMyService'
+      Default: 'DeployStackService'
     };
     resources['Cluster'] = {
       Type: 'AWS::ECS::Cluster',
