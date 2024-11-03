@@ -7,13 +7,12 @@ const defaultParserConfig: DefaultParserConfig = {
   templateFormat: TemplateFormat.yaml
 };
 
-// Assuming you need to convert Docker Compose service to Render service details.
+
 class RenderParser extends BaseParser {
 
   parse(dockerCompose: DockerCompose, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
     const services: Array<any> = [];
-  
-    
+
     for (const [serviceName, serviceConfig] of Object.entries(dockerCompose.services)) {
 
       const ports = new Set<number>();
@@ -35,7 +34,12 @@ class RenderParser extends BaseParser {
 
       if (ports.size > 0) {
         environmentVariables['PORT'] = Array.from(ports)[0];  // Binding port 
-      }      
+      }
+
+      // Handle different possible types for command
+      const startCommand = Array.isArray(serviceConfig.command)
+        ? serviceConfig.command.join(' ')
+        : serviceConfig.command || '';
 
       const service: any = {
         name: serviceName,
@@ -43,7 +47,7 @@ class RenderParser extends BaseParser {
         env: 'docker',
         runtime: 'image',
         image: { url: `docker.io/library/${serviceConfig.image}` },
-        startCommand: serviceConfig.command || '',
+        startCommand,
         plan: defaultParserConfig.subscriptionName,  // Change according to your needs, Render offers "free", "starter', "standard', "pro"
         region: defaultParserConfig.region, // Default example region, adjust based on preference
         envVars: Object.entries(environmentVariables).map(([key, value]) => ({
