@@ -80,10 +80,10 @@ class CloudFormationParser extends BaseParser {
       };
 
       const commandArray = typeof serviceConfig.command === 'string'
-      ? serviceConfig.command.split(' ')
-      : Array.isArray(serviceConfig.command)
-        ? serviceConfig.command
-        : [];      
+        ? serviceConfig.command.split(' ')
+        : Array.isArray(serviceConfig.command)
+          ? serviceConfig.command
+          : [];
 
       const ports = new Set<number>();
       serviceConfig.ports?.map((value) => { 
