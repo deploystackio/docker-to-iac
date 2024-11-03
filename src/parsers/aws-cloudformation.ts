@@ -79,6 +79,12 @@ class CloudFormationParser extends BaseParser {
         }
       };
 
+      const commandArray = typeof serviceConfig.command === 'string'
+      ? serviceConfig.command.split(' ')
+      : Array.isArray(serviceConfig.command)
+        ? serviceConfig.command
+        : [];      
+
       const ports = new Set<number>();
       serviceConfig.ports?.map((value) => { 
         ports.add(Number(value.split(':')[0]));
@@ -112,7 +118,7 @@ class CloudFormationParser extends BaseParser {
           ContainerDefinitions: [
             {
               Name: serviceName,
-              Command: serviceConfig.command?.split(' '),
+              Command: commandArray,
               Image: `docker.io/${serviceConfig.image}`,
               PortMappings: [ ...Array.from(ports.values()).map((value) => {
                 return { ContainerPort: value };

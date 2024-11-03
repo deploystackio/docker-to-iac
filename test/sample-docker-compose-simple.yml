@@ -1,0 +1,36 @@
+version: '3.2'
+
+services:
+  db:
+    image: redis:latest
+    restart: always
+    volumes:
+      - rediscache:/data
+    environment:
+      - MYSQL_ROOT_PASSWORD=
+      - MARIADB_AUTO_UPGRADE=1
+      - MARIADB_DISABLE_UPGRADE_BACKUP=1
+    ports:
+      - '6379:6379'
+
+  web:
+    image: nginx:alpine
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: "ganzgeheim"
+      MARIADB_PASSWORD: "geheim"
+      MARIADB_USER: "testuser"
+      MARIADB_DATABASE: "testdb"    
+    command: >
+        /bin/bash -c "whoami
+        && ls / ls -al /var/"
+    volumes:
+      - volumenginx:/var/www/html:z,ro
+    ports:
+      - 8080:80
+      - "8081:80" # just for testing duplicate port setup
+      - 8080:443
+
+volumes:
+  rediscache:
+  volumenginx:
