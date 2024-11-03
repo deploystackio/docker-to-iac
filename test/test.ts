@@ -11,7 +11,7 @@ console.log('Render Info:');
 console.log(renderInfo);
 
 // Read the Docker Compose file as plain text
-const dockerComposeContent = readFileSync('test/sample-docker-compose.yml', 'utf8');
+const dockerComposeContent = readFileSync('test/sample-docker-compose-simple.yml', 'utf8');
 
 // =================================================================================================
 
@@ -55,6 +55,25 @@ writeFileSync(`test/output/output-render-${TemplateFormat.yaml}.yaml`, renderCon
 
 // =================================================================================================
 
+// Testing DigitalOcean YAML
+const digitaloceanConfigYaml = translate(dockerComposeContent, 'DOP', TemplateFormat.yaml);
+console.log('DigitalOcean YAML:');
+console.log(digitaloceanConfigYaml);
+writeFileSync(`test/output/output-digitalocean-${TemplateFormat.yaml}.yml`, digitaloceanConfigYaml);
+
+// Testing DigitalOcean JSON
+const digitaloceanConfigJson = translate(dockerComposeContent, 'DOP', TemplateFormat.json);
+console.log('DigitalOcean JSON:');
+console.log(digitaloceanConfigJson);
+writeFileSync(`test/output/output-digitalocean-${TemplateFormat.json}.json`, JSON.stringify(digitaloceanConfigJson, null, 2));
+
+// Testing DigitalOcean Text
+const digitaloceanConfigText = translate(dockerComposeContent, 'DOP', TemplateFormat.text);
+console.log('DigitalOcean Text:');
+console.log(digitaloceanConfigText);
+writeFileSync(`test/output/output-digitalocean-${TemplateFormat.text}.txt`, digitaloceanConfigText);
+
+// =================================================================================================
 
 // List all available parsers
 const parsers = listAllParsers();

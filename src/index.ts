@@ -1,14 +1,15 @@
 import * as YAML from 'yaml';
 import cloudFormationParserInstance from './parsers/aws-cloudformation';
 import renderParserInstance from './parsers/render';
+import digitalOceanParserInstance from './parsers/digitalocean';
 import { BaseParser, ParserInfo, TemplateFormat } from './parsers/base-parser';
 
 // List of all available parsers
 const parsers: BaseParser[] = [
   cloudFormationParserInstance,
   renderParserInstance,
-  // Add new parsers here in the future as needed,
-  // e.g., terraformParserInstance
+  digitalOceanParserInstance,
+  // Add new parsers here in the future as needed
 ];
 
 function translate(dockerComposeContent: string, languageAbbreviation: string, templateFormat?: TemplateFormat): any {
