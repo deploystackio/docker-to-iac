@@ -65,7 +65,7 @@ writeFileSync(`test/output/output-digitalocean-${TemplateFormat.yaml}.yml`, digi
 const digitaloceanConfigJson = translate(dockerComposeContent, 'DOP', TemplateFormat.json);
 console.log('DigitalOcean JSON:');
 console.log(digitaloceanConfigJson);
-writeFileSync(`test/output/output-digitalocean-${TemplateFormat.json}.json`, digitaloceanConfigJson);
+writeFileSync(`test/output/output-digitalocean-${TemplateFormat.json}.json`, JSON.stringify(digitaloceanConfigJson, null, 2));
 
 // Testing DigitalOcean Text
 const digitaloceanConfigText = translate(dockerComposeContent, 'DOP', TemplateFormat.text);
