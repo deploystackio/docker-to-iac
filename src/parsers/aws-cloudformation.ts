@@ -3,7 +3,8 @@ import { BaseParser, ParserInfo, DockerCompose, TemplateFormat, formatResponse, 
 const defaultParserConfig: DefaultParserConfig = {
   cpu: 512,
   memory: '1GB',
-  templateFormat: TemplateFormat.yaml
+  templateFormat: TemplateFormat.yaml,
+  fileName: 'aws-cloudformation.cf.yml'
 };
 
 class CloudFormationParser extends BaseParser {

@@ -15,7 +15,7 @@ export type DefaultParserConfig = {
   cpu?: any;
   memory?: any;
   region?: string;
-  fileName?: string;
+  fileName: string;
   subscriptionName?: string;
 };
 
