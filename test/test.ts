@@ -1,4 +1,4 @@
-import { translate, getParserInfo, listAllParsers } from '../src/index';
+import { translate, getParserInfo, listAllParsers, listServices } from '../src/index';
 import { TemplateFormat } from '../src/parsers/base-parser';
 import { writeFileSync, readFileSync } from 'fs';
 
@@ -80,3 +80,10 @@ const parsers = listAllParsers();
 
 console.log('Available Parsers:');
 console.log(parsers);
+
+
+// List all available services within docker-compose file
+const services = listServices(dockerComposeContent);
+
+console.log('List Services:');
+console.log(services);
