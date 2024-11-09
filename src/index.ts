@@ -2,7 +2,7 @@ import * as YAML from 'yaml';
 import cloudFormationParserInstance from './parsers/aws-cloudformation';
 import renderParserInstance from './parsers/render';
 import digitalOceanParserInstance from './parsers/digitalocean';
-import { BaseParser, ParserInfo, TemplateFormat } from './parsers/base-parser';
+import { BaseParser, ParserInfo, TemplateFormat, DockerCompose, DockerComposeService, DockerComposeValidationError } from './parsers/base-parser';
 
 // List of all available parsers
 const parsers: BaseParser[] = [
@@ -14,7 +14,22 @@ const parsers: BaseParser[] = [
 
 function translate(dockerComposeContent: string, languageAbbreviation: string, templateFormat?: TemplateFormat): any {
   try {
-    const dockerCompose = YAML.parse(dockerComposeContent) as any;
+    const dockerCompose = YAML.parse(dockerComposeContent) as DockerCompose;
+
+    // Validation: Check if services exist
+    if (!dockerCompose.services || Object.keys(dockerCompose.services).length === 0) {
+      throw new DockerComposeValidationError('No services found in docker-compose file');
+    }
+
+    // Validation: Check if each service has an image
+    for (const [serviceName, service] of Object.entries<DockerComposeService>(dockerCompose.services)) {
+      if (!service.image) {
+        throw new DockerComposeValidationError(
+          `Service '${serviceName}' does not have an image specified. ` +
+          'All services must use pre-built images. Build instructions are not supported.'
+        );
+      }
+    }
 
     const parser = parsers.find(parser => parser.getInfo().languageAbbreviation.toLowerCase() === languageAbbreviation.toLowerCase());
     if (!parser) {
@@ -24,8 +39,12 @@ function translate(dockerComposeContent: string, languageAbbreviation: string, t
     const translatedConfig = parser.parse(dockerCompose, templateFormat);
     return translatedConfig;
   } catch (e) {
-    console.error(`Error translating docker-compose content: ${e}`);
-    return null;
+    if (e instanceof DockerComposeValidationError) {
+      console.error(`Validation Error: ${e.message}`);
+    } else {
+      console.error(`Error translating docker-compose content: ${e}`);
+    }
+    throw e;
   }
 }
 
