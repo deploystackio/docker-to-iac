@@ -56,3 +56,10 @@ export abstract class BaseParser {
   abstract parse(dockerCompose: DockerCompose, templateFormat?: TemplateFormat): any;
   abstract getInfo(): ParserInfo;
 }
+
+export class DockerComposeValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DockerComposeValidationError';
+  }
+}

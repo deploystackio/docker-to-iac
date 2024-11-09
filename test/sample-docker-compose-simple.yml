@@ -3,6 +3,9 @@ version: '3.2'
 services:
   db:
     image: redis:latest
+    # build:
+    #   context: contextPath
+    #   dockerfile: Dockerfile
     restart: always
     volumes:
       - rediscache:/data
