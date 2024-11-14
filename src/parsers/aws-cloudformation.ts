@@ -1,4 +1,5 @@
 import { BaseParser, ParserInfo, DockerCompose, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
+import { getImageUrl } from '../utils/getImageUrl';
 
 const defaultParserConfig: DefaultParserConfig = {
   cpu: 512,
@@ -120,7 +121,7 @@ class CloudFormationParser extends BaseParser {
             {
               Name: serviceName,
               Command: commandArray,
-              Image: `docker.io/${serviceConfig.image}`,
+              Image: getImageUrl(serviceConfig.image),
               PortMappings: [ ...Array.from(ports.values()).map((value) => {
                 return { ContainerPort: value };
               }) ],
