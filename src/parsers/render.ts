@@ -1,4 +1,5 @@
 import { BaseParser, ParserInfo, DockerCompose, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
+import { getImageUrl } from '../utils/getImageUrl';
 
 const defaultParserConfig: DefaultParserConfig = {
   subscriptionName: 'free',
@@ -14,7 +15,6 @@ class RenderParser extends BaseParser {
     const services: Array<any> = [];
 
     for (const [serviceName, serviceConfig] of Object.entries(dockerCompose.services)) {
-
       const ports = new Set<number>();
       serviceConfig.ports?.map((value) => { 
         ports.add(Number(value.split(':')[0]));
@@ -46,10 +46,10 @@ class RenderParser extends BaseParser {
         type: 'web',
         env: 'docker',
         runtime: 'image',
-        image: { url: `docker.io/library/${serviceConfig.image}` },
+        image: { url: getImageUrl(serviceConfig.image) },
         startCommand,
-        plan: defaultParserConfig.subscriptionName,  // Change according to your needs, Render offers "free", "starter', "standard', "pro"
-        region: defaultParserConfig.region, // Default example region, adjust based on preference
+        plan: defaultParserConfig.subscriptionName,
+        region: defaultParserConfig.region,
         envVars: Object.entries(environmentVariables).map(([key, value]) => ({
           key,
           value

@@ -2,7 +2,8 @@ import * as YAML from 'yaml';
 import cloudFormationParserInstance from './parsers/aws-cloudformation';
 import renderParserInstance from './parsers/render';
 import digitalOceanParserInstance from './parsers/digitalocean';
-import { BaseParser, ParserInfo, TemplateFormat, DockerCompose, DockerComposeService, DockerComposeValidationError } from './parsers/base-parser';
+import { parseDockerImage } from './utils/parseDockerImage';
+import { BaseParser, ParserInfo, TemplateFormat, DockerCompose, DockerComposeService, DockerComposeValidationError, NormalizedDockerComposeService } from './parsers/base-parser';
 
 import { validateDockerCompose } from './utils/validateDockerCompose';
 
@@ -36,12 +37,12 @@ function translate(dockerComposeContent: string, languageAbbreviation: string, t
   }
 }
 
-function listServices(dockerComposeContent: string): { [key: string]: DockerComposeService } {
+function listServices(dockerComposeContent: string): { [key: string]: NormalizedDockerComposeService } {
   try {
     const dockerCompose = YAML.parse(dockerComposeContent) as DockerCompose;
     validateDockerCompose(dockerCompose);
 
-    const normalizedServices: { [key: string]: DockerComposeService } = {};
+    const normalizedServices: { [key: string]: NormalizedDockerComposeService } = {};
     
     for (const [serviceName, service] of Object.entries<DockerComposeService>(dockerCompose.services)) {
       // Normalize environment variables to a consistent object format
@@ -60,8 +61,11 @@ function listServices(dockerComposeContent: string): { [key: string]: DockerComp
         }
       }
 
+      // Parse image information
+      const imageInfo = parseDockerImage(service.image);
+
       normalizedServices[serviceName] = {
-        image: service.image,
+        image: imageInfo,
         ports: service.ports || [],
         command: service.command || '',
         restart: service.restart || '',

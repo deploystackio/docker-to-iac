@@ -1,7 +1,5 @@
-interface DockerImageInfo {
-  repository: string;
-  tag: string;
-}
+// file: utils/parseDockerImage.ts
+import { DockerImageInfo, RegistryType } from '../parsers/base-parser';
 
 export const parseDockerImage = (imageString: string): DockerImageInfo => {
   if (typeof imageString !== 'string') {
@@ -12,33 +10,48 @@ export const parseDockerImage = (imageString: string): DockerImageInfo => {
     throw new Error('Docker image string cannot be empty');
   }
 
-  // Default values
-  let repository = '';
-  let tag = 'latest';
-
   // Remove any whitespace
   const cleanImageString = imageString.trim();
 
-  // Handle SHA256 digest format
-  if (cleanImageString.includes('@sha256:')) {
-    const [imagePart, digest] = cleanImageString.split('@sha256:');
-    tag = `sha256:${digest}`;
-    repository = imagePart;
-  } else {
-    // Handle standard tag format
-    const [imagePart, tagPart] = cleanImageString.split(':');
-    repository = imagePart;
-    if (tagPart) {
-      tag = tagPart;
-    }
+  let registry_type = RegistryType.DOCKER_HUB;
+  let registry: string | undefined;
+  let repository: string;
+  let tag: string | undefined = 'latest';
+  let digest: string | undefined;
+
+  // Split the image string into parts
+  const parts = cleanImageString.split('/');
+
+  // Check if image has a registry
+  if (cleanImageString.includes('ghcr.io')) {
+    registry_type = RegistryType.GHCR;
+    registry = parts[0];
+    parts.shift(); // Remove the registry part
+  } else if (parts.length > 1 && (parts[0].includes('.') || parts[0].includes(':'))) {
+    registry = parts[0];
+    parts.shift(); // Remove the registry part
   }
 
-  // Handle private repository format (e.g., repository.example.com/image)
-  const repositoryParts = repository.split('/');
-  repository = repositoryParts[repositoryParts.length - 1];
+  // Join remaining parts to get repository
+  repository = parts.join('/');
+
+  // Handle digest or tag
+  if (repository.includes('@sha256:')) {
+    const [repoName, digestValue] = repository.split('@sha256:');
+    repository = repoName;
+    digest = `sha256:${digestValue}`;
+    tag = undefined;
+  } else if (repository.includes(':')) {
+    const [repoName, tagValue] = repository.split(':');
+    repository = repoName;
+    tag = tagValue;
+  }
 
   return {
+    registry_type,
+    ...(registry && { registry }),
     repository,
-    tag
+    ...(tag && { tag }),
+    ...(digest && { digest })
   };
 };

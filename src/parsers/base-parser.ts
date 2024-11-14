@@ -19,6 +19,19 @@ export type DefaultParserConfig = {
   subscriptionName?: string;
 };
 
+export enum RegistryType {
+  DOCKER_HUB = 'DOCKER_HUB',
+  GHCR = 'GHCR'
+}
+
+export interface DockerImageInfo {
+  registry_type: RegistryType;
+  registry?: string;
+  repository: string;
+  tag?: string;
+  digest?: string;
+}
+
 export interface DockerComposeService {
   image: string;
   ports?: string[];
@@ -26,6 +39,15 @@ export interface DockerComposeService {
   restart?: string;
   volumes?: string[];
   environment?: { [key: string]: string };
+}
+
+export interface NormalizedDockerComposeService {
+  image: DockerImageInfo;
+  ports: string[];
+  command: string;
+  restart: string;
+  volumes: string[];
+  environment: { [key: string]: string };
 }
 
 export interface DockerCompose {

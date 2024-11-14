@@ -23,7 +23,7 @@ services:
       MARIADB_ROOT_PASSWORD: "ganzgeheim"
       MARIADB_PASSWORD: "geheim"
       MARIADB_USER: "testuser"
-      MARIADB_DATABASE: "testdb"    
+      MARIADB_DATABASE: "testdb"
     command: >
         /bin/bash -c "whoami
         && ls / ls -al /var/"
