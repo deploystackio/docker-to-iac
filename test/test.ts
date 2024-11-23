@@ -1,89 +1,133 @@
 import { translate, getParserInfo, listAllParsers, listServices } from '../src/index';
 import { TemplateFormat } from '../src/parsers/base-parser';
-import { writeFileSync, readFileSync } from 'fs';
+import { writeFileSync, readFileSync, readdirSync, mkdirSync, existsSync } from 'fs';
+import { join } from 'path';
 
-const awsInfo = getParserInfo('CFN');
-console.log('AWS CloudFormation Info:');
-console.log(awsInfo);
+// Track test failures
+let hasTestFailed = false;
 
-const renderInfo = getParserInfo('RND');
-console.log('Render Info:');
-console.log(renderInfo);
+// Constants for directories
+const DOCKER_COMPOSE_DIR = join(__dirname, 'docker-compose-files');
+const OUTPUT_DIR = join(__dirname, 'output');
 
-// Read the Docker Compose file as plain text
-const dockerComposeContent = readFileSync('test/sample-docker-compose-simple.yml', 'utf8');
+// Ensure output directory exists
+if (!existsSync(OUTPUT_DIR)) {
+  mkdirSync(OUTPUT_DIR);
+}
 
-// =================================================================================================
-
-// Testing AWS CloudFormation Text
-const awsConfigPlain = translate(dockerComposeContent, 'CFN', TemplateFormat.text);
-console.log(`AWS CloudFormation ${TemplateFormat.text}:`);
-console.log(awsConfigPlain);
-writeFileSync(`test/output/output-aws-${TemplateFormat.text}.txt`, awsConfigPlain);
-
-// Testing AWS CloudFormation JSON
-const awsConfigJson = translate(dockerComposeContent, 'CFN', TemplateFormat.json);
-console.log(`AWS CloudFormation ${TemplateFormat.json}:`);
-console.log(awsConfigJson);
-writeFileSync(`test/output/output-aws-${TemplateFormat.json}.json`, JSON.stringify(awsConfigJson, null, 2));
-
-// Testing AWS CloudFormation YAML
-const awsConfigYaml = translate(dockerComposeContent, 'CFN'); // Defualt Test
-console.log(`AWS CloudFormation ${TemplateFormat.yaml}:`);
-console.log(awsConfigYaml);
-writeFileSync(`test/output/output-aws-${TemplateFormat.yaml}.yml`, awsConfigYaml);
-
-// =================================================================================================
-
-// Testing Render Text
-const renderConfigText = translate(dockerComposeContent, 'RND', TemplateFormat.text);
-console.log('Render Text:');
-console.log(renderConfigText);
-writeFileSync(`test/output/output-render-${TemplateFormat.text}.txt`, renderConfigText);
-
-// Testing Render JSON
-const renderConfigJson = translate(dockerComposeContent, 'RND', TemplateFormat.json);
-console.log('Render JSON:');
-console.log(renderConfigJson);
-writeFileSync(`test/output/output-render-${TemplateFormat.json}.json`, JSON.stringify(renderConfigJson, null, 2));
-
-// Testing Render YAML
-const renderConfigYaml = translate(dockerComposeContent, 'RND'); // Defualt Test
-console.log('Render YAML:');
-console.log(renderConfigYaml);
-writeFileSync(`test/output/output-render-${TemplateFormat.yaml}.yaml`, renderConfigYaml);
-
-// =================================================================================================
-
-// Testing DigitalOcean YAML
-const digitaloceanConfigYaml = translate(dockerComposeContent, 'DOP', TemplateFormat.yaml);
-console.log('DigitalOcean YAML:');
-console.log(digitaloceanConfigYaml);
-writeFileSync(`test/output/output-digitalocean-${TemplateFormat.yaml}.yml`, digitaloceanConfigYaml);
-
-// Testing DigitalOcean JSON
-const digitaloceanConfigJson = translate(dockerComposeContent, 'DOP', TemplateFormat.json);
-console.log('DigitalOcean JSON:');
-console.log(digitaloceanConfigJson);
-writeFileSync(`test/output/output-digitalocean-${TemplateFormat.json}.json`, JSON.stringify(digitaloceanConfigJson, null, 2));
-
-// Testing DigitalOcean Text
-const digitaloceanConfigText = translate(dockerComposeContent, 'DOP', TemplateFormat.text);
-console.log('DigitalOcean Text:');
-console.log(digitaloceanConfigText);
-writeFileSync(`test/output/output-digitalocean-${TemplateFormat.text}.txt`, digitaloceanConfigText);
-
-// =================================================================================================
-
-// List all available parsers
+// Test listAllParsers functionality
+console.log('\n=== Testing listAllParsers ===');
 const parsers = listAllParsers();
+if (!parsers || parsers.length === 0) {
+  console.error('❌ No parsers found');
+  hasTestFailed = true;
+} else {
+  console.log('✓ Available Parsers:', parsers);
+}
 
-console.log('Available Parsers:');
-console.log(parsers);
+// Test getParserInfo for each parser
+console.log('\n=== Testing getParserInfo for each parser ===');
+parsers.forEach(parser => {
+  try {
+    const parserInfo = getParserInfo(parser.languageAbbreviation);
+    console.log(`✓ Parser Info for ${parser.providerName}:`, parserInfo);
+  } catch (error) {
+    console.error(`❌ Failed to get parser info for ${parser.providerName}:`, error);
+    hasTestFailed = true;
+  }
+});
 
+// Get all docker-compose files
+const dockerComposeFiles = readdirSync(DOCKER_COMPOSE_DIR)
+  .filter(file => file.endsWith('.yml') || file.endsWith('.yaml'));
 
-// List all available services within docker-compose file
-const services = listServices(dockerComposeContent);
+if (dockerComposeFiles.length === 0) {
+  console.error('❌ No docker-compose files found in test/docker-compose-files');
+  hasTestFailed = true;
+}
 
-console.log('List Services:');
-console.log(services);
+// Process each docker-compose file
+dockerComposeFiles.forEach(filename => {
+  console.log(`\n=== Processing ${filename} ===`);
+  
+  // Create output directory for this file if it doesn't exist
+  const fileOutputDir = join(OUTPUT_DIR, filename.replace(/\.(yml|yaml)$/, ''));
+  if (!existsSync(fileOutputDir)) {
+    mkdirSync(fileOutputDir);
+  }
+
+  // Read docker-compose content
+  const dockerComposeContent = readFileSync(join(DOCKER_COMPOSE_DIR, filename), 'utf8');
+
+  // Test listServices for each file
+  console.log(`\nTesting listServices for ${filename}`);
+  try {
+    const services = listServices(dockerComposeContent);
+    console.log('✓ Services found:', services);
+    writeFileSync(
+      join(fileOutputDir, 'services.json'), 
+      JSON.stringify(services, null, 2)
+    );
+  } catch (error) {
+    console.error(`❌ Failed to list services for ${filename}:`, error);
+    hasTestFailed = true;
+  }
+
+  // Test each parser with each format
+  parsers.forEach(parser => {
+    console.log(`\nTesting ${parser.providerName} parser`);
+    const parserOutputDir = join(fileOutputDir, parser.languageAbbreviation.toLowerCase());
+    
+    if (!existsSync(parserOutputDir)) {
+      mkdirSync(parserOutputDir);
+    }
+
+    // Test all template formats
+    Object.values(TemplateFormat).forEach(format => {
+      try {
+        const result = translate(dockerComposeContent, parser.languageAbbreviation, format as TemplateFormat);
+        const extension = format === TemplateFormat.yaml ? 'yml' : format;
+        const outputPath = join(parserOutputDir, `output.${extension}`);
+        
+        if (format === TemplateFormat.json) {
+          // Handle JSON format
+          let jsonContent;
+          try {
+            jsonContent = JSON.parse(result);
+          } catch {
+            // If parsing fails, it might already be an object
+            jsonContent = result;
+          }
+          
+          // Ensure we're writing a string
+          const jsonString = typeof jsonContent === 'string' 
+            ? jsonContent 
+            : JSON.stringify(jsonContent, null, 2);
+            
+          writeFileSync(outputPath, jsonString);
+        } else {
+          writeFileSync(outputPath, result);
+        }
+        
+        console.log(`✓ Successfully generated ${format} output for ${parser.providerName}`);
+      } catch (error) {
+        console.error(`❌ Error generating ${format} output for ${parser.providerName}:`, error);
+        if (error instanceof Error) {
+          console.error('Error details:', error.message);
+        }
+        hasTestFailed = true;
+      }
+    });
+  });
+});
+
+console.log('\n=== Test execution completed ===');
+
+// Exit with error if any test failed
+if (hasTestFailed) {
+  console.error('\n❌ Some tests failed');
+  process.exit(1);
+} else {
+  console.log('\n✓ All tests passed successfully');
+  process.exit(0);
+}

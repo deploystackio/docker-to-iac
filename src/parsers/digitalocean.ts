@@ -1,5 +1,8 @@
 import { BaseParser, ParserInfo, DockerCompose, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
 import { parseDockerImage } from '../utils/parseDockerImage';
+import { parsePort } from '../utils/parsePort';
+import { parseCommand } from '../utils/parseCommand';
+import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
 
 const defaultParserConfig: DefaultParserConfig = {
   templateFormat: TemplateFormat.yaml,
@@ -14,31 +17,18 @@ class DigitalOceanParser extends BaseParser {
     let isFirstService = true;
 
     for (const [serviceName, serviceConfig] of Object.entries(dockerCompose.services)) {
-
-      const environmentVariables = [];
-
-      if (serviceConfig.environment) {
-        if (Array.isArray(serviceConfig.environment)) {
-          for (const env of serviceConfig.environment) {
-            const [key, value] = env.split('=');
-            environmentVariables.push({
-              key: key.trim(),
-              value: value ? value.trim() : ''
-            });
-          }
-        } else {
-          for (const [key, value] of Object.entries(serviceConfig.environment)) {
-            environmentVariables.push({
-              key,
-              value: value?.toString() || ''
-            });
-          }
-        }
-      }
+      const ports = new Set<number>();
       
-      const httpPort = serviceConfig.ports?.length ? parseInt(serviceConfig.ports[0].split(':')[0]) : undefined;
-      const dockerImageInfo = parseDockerImage(serviceConfig.image);
+      if (serviceConfig.ports) {
+        serviceConfig.ports.forEach(port => {
+          const parsedPort = parsePort(port);
+          if (parsedPort) {
+            ports.add(parsedPort);
+          }
+        });
+      }
 
+      const dockerImageInfo = parseDockerImage(serviceConfig.image);
       const routePath = isFirstService ? '/' : `/${serviceName}`;
       isFirstService = false;
 
@@ -49,13 +39,15 @@ class DigitalOceanParser extends BaseParser {
           repository: dockerImageInfo.repository,
           tag: dockerImageInfo.tag
         },
-        http_port: httpPort,
+        http_port: ports.size > 0 ? Array.from(ports)[0] : undefined,
         instance_count: 1,
         instance_size_slug: defaultParserConfig.subscriptionName,
-        run_command: Array.isArray(serviceConfig.command)
-          ? serviceConfig.command.join(' ')
-          : serviceConfig.command || '',
-        envs: environmentVariables,
+        run_command: parseCommand(serviceConfig.command),
+        envs: Object.entries(parseEnvironmentVariables(serviceConfig.environment))
+          .map(([key, value]) => ({
+            key,
+            value: value.toString()
+          })),
         routes: [{ path: routePath }]
       };
 

@@ -1,5 +1,8 @@
 import { BaseParser, ParserInfo, DockerCompose, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
 import { getImageUrl } from '../utils/getImageUrl';
+import { parsePort } from '../utils/parsePort';
+import { parseCommand } from '../utils/parseCommand';
+import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
 
 const defaultParserConfig: DefaultParserConfig = {
   subscriptionName: 'free',
@@ -16,30 +19,22 @@ class RenderParser extends BaseParser {
 
     for (const [serviceName, serviceConfig] of Object.entries(dockerCompose.services)) {
       const ports = new Set<number>();
-      serviceConfig.ports?.map((value) => { 
-        ports.add(Number(value.split(':')[0]));
-      });
-
-      const environmentVariables: { [key: string]: string | number } = {};
-      if (serviceConfig.environment) {
-        Object.entries(serviceConfig.environment).forEach(([key, value]) => {
-          if (value.includes('=')) {
-            const [splitKey, splitValue] = value.split('=');
-            environmentVariables[splitKey] = splitValue;
-          } else {
-            environmentVariables[key] = value;
+      
+      if (serviceConfig.ports) {
+        serviceConfig.ports.forEach(port => {
+          const parsedPort = parsePort(port);
+          if (parsedPort) {
+            ports.add(parsedPort);
           }
         });
-      };
-
-      if (ports.size > 0) {
-        environmentVariables['PORT'] = Array.from(ports)[0];  // Binding port 
       }
 
-      // Handle different possible types for command
-      const startCommand = Array.isArray(serviceConfig.command)
-        ? serviceConfig.command.join(' ')
-        : serviceConfig.command || '';
+      const environmentVariables = parseEnvironmentVariables(serviceConfig.environment);
+
+      // Add the first available port as the PORT environment variable
+      if (ports.size > 0) {
+        environmentVariables['PORT'] = Array.from(ports)[0];
+      }
 
       const service: any = {
         name: serviceName,
@@ -47,20 +42,20 @@ class RenderParser extends BaseParser {
         env: 'docker',
         runtime: 'image',
         image: { url: getImageUrl(serviceConfig.image) },
-        startCommand,
+        startCommand: parseCommand(serviceConfig.command),
         plan: defaultParserConfig.subscriptionName,
         region: defaultParserConfig.region,
         envVars: Object.entries(environmentVariables).map(([key, value]) => ({
           key,
-          value
-        })),
+          value: value.toString()
+        }))
       };
 
       services.push(service);
     }
 
     const renderConfig = {
-      services,
+      services
     };
     
     return formatResponse(JSON.stringify(renderConfig, null, 2), templateFormat);

@@ -1,5 +1,8 @@
 import { BaseParser, ParserInfo, DockerCompose, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
 import { getImageUrl } from '../utils/getImageUrl';
+import { parsePort } from '../utils/parsePort';
+import { parseCommand } from '../utils/parseCommand';
+import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
 
 const defaultParserConfig: DefaultParserConfig = {
   cpu: 512,
@@ -9,7 +12,6 @@ const defaultParserConfig: DefaultParserConfig = {
 };
 
 class CloudFormationParser extends BaseParser {
-
   replaceSpecialDirectives(input: string): string {
     const refRegex = /"!Ref ([^"]+)"/g;
     const joinRegex = /"!Join (\[.*?\])"/g;
@@ -21,7 +23,6 @@ class CloudFormationParser extends BaseParser {
   }
 
   parse(dockerCompose: DockerCompose, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
-
     let response: any = {};
     const parameters: any = {};
     const resources: any = {};
@@ -34,6 +35,8 @@ class CloudFormationParser extends BaseParser {
       Type: 'String',
       Default: 'DeployStackService'
     };
+    
+    // Base AWS Resources
     resources['Cluster'] = {
       Type: 'AWS::ECS::Cluster',
       Properties: { ClusterName: '!Join [\'\', [!Ref ServiceName, Cluster]]' }
@@ -72,7 +75,7 @@ class CloudFormationParser extends BaseParser {
       }
     };
 
-    // Populate resources based on dockerCompose contents
+    // Process each service in the docker compose
     for (const [serviceName, serviceConfig] of Object.entries(dockerCompose.services)) {
       resources[`LogGroup${serviceName}`] = {
         Type: 'AWS::Logs::LogGroup',
@@ -81,28 +84,18 @@ class CloudFormationParser extends BaseParser {
         }
       };
 
-      const commandArray = typeof serviceConfig.command === 'string'
-        ? serviceConfig.command.split(' ')
-        : Array.isArray(serviceConfig.command)
-          ? serviceConfig.command
-          : [];
-
       const ports = new Set<number>();
-      serviceConfig.ports?.map((value) => { 
-        ports.add(Number(value.split(':')[0]));
-      });
-      
-      const environmentVariables: { [key: string]: string } = {};
-      if (serviceConfig.environment) {
-        Object.entries(serviceConfig.environment).forEach(([key, value]) => {
-          if (value.includes('=')) {
-            const [splitKey, splitValue] = value.split('=');
-            environmentVariables[splitKey] = splitValue;
-          } else {
-            environmentVariables[key] = value;
+      if (serviceConfig.ports) {
+        serviceConfig.ports.forEach(port => {
+          const parsedPort = parsePort(port);
+          if (parsedPort) {
+            ports.add(parsedPort);
           }
         });
-      };
+      }
+
+      const environmentVariables = parseEnvironmentVariables(serviceConfig.environment);
+      const commandArray = parseCommand(serviceConfig.command)?.split(' ') || [];
 
       resources[`TaskDefinition${serviceName}`] = {
         Type: 'AWS::ECS::TaskDefinition',
@@ -110,9 +103,7 @@ class CloudFormationParser extends BaseParser {
         Properties: {
           Family: `!Join ['', [!Ref ServiceName, TaskDefinition${serviceName}]]`,
           NetworkMode: 'awsvpc',
-          RequiresCompatibilities: [
-            'FARGATE'
-          ],
+          RequiresCompatibilities: ['FARGATE'],
           Cpu: defaultParserConfig.cpu,
           Memory: defaultParserConfig.memory,
           ExecutionRoleArn: '!Ref ExecutionRole',
@@ -122,12 +113,12 @@ class CloudFormationParser extends BaseParser {
               Name: serviceName,
               Command: commandArray,
               Image: getImageUrl(serviceConfig.image),
-              PortMappings: [ ...Array.from(ports.values()).map((value) => {
-                return { ContainerPort: value };
-              }) ],
-              Environment: Object.keys(environmentVariables).map(key => ({
+              PortMappings: Array.from(ports).map(port => ({
+                ContainerPort: port
+              })),
+              Environment: Object.entries(environmentVariables).map(([key, value]) => ({
                 name: key,
-                value: environmentVariables[key as keyof typeof environmentVariables]
+                value: value.toString()
               })),
               LogConfiguration: {
                 LogDriver: 'awslogs',
@@ -147,16 +138,12 @@ class CloudFormationParser extends BaseParser {
         Properties: {
           GroupDescription: `!Join ['', [${serviceName}, ContainerSecurityGroup]]`,
           VpcId: '!Ref VPC',
-          SecurityGroupIngress: [ 
-            ...Array.from(ports.values()).map((value) => { 
-              return {
-                IpProtocol: 'tcp',
-                FromPort: value,
-                ToPort: value,
-                CidrIp: '0.0.0.0/0',
-              };
-            }) 
-          ]
+          SecurityGroupIngress: Array.from(ports).map(port => ({
+            IpProtocol: 'tcp',
+            FromPort: port,
+            ToPort: port,
+            CidrIp: '0.0.0.0/0'
+          }))
         }
       };
 
@@ -175,7 +162,7 @@ class CloudFormationParser extends BaseParser {
                 '!Ref SubnetA',
                 '!Ref SubnetB'
               ],
-              SecurityGroups: [ `!Ref ContainerSecurityGroup${serviceName}` ]
+              SecurityGroups: [`!Ref ContainerSecurityGroup${serviceName}`]
             }
           }
         }
@@ -194,7 +181,7 @@ class CloudFormationParser extends BaseParser {
         return this.replaceSpecialDirectives(formatResponse(JSON.stringify(response, null, 2), templateFormat));
       default:
         return formatResponse(JSON.stringify(response, null, 2), templateFormat);
-    };
+    }
   }
 
   getInfo(): ParserInfo {
