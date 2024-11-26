@@ -2,6 +2,7 @@ import { BaseParser, ParserInfo, DockerCompose, TemplateFormat, formatResponse, 
 import { parseDockerImage } from '../utils/parseDockerImage';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
+import { digitalOceanParserServiceName } from '../utils/digitalOceanParserServiceName';
 import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
 
 const defaultParserConfig: DefaultParserConfig = {
@@ -33,7 +34,7 @@ class DigitalOceanParser extends BaseParser {
       isFirstService = false;
 
       const service = {
-        name: serviceName,
+        name: digitalOceanParserServiceName(serviceName),
         image: {
           registry_type: 'DOCKER_HUB',
           repository: dockerImageInfo.repository,
