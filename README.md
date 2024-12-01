@@ -30,7 +30,7 @@ writeFileSync('output-aws.json', JSON.stringify(translatedConfig, null, 2));
 
 ## Documentation
 
-Please visit [docs.deploystack.io](https://docs.deploystack.io/docker-to-iac) to read full documentation.
+Please visit [deploystack.io/docs](https://deploystack.io/docs/docker-to-iac) to read full documentation.
 
 ## License
 
