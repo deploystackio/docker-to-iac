@@ -1,18 +1,17 @@
-interface PortConfig {
-  target?: number;
-  published?: number;
-  protocol?: string;
-  mode?: string;
-}
+import { PortMapping } from '../types/container-config';
 
-export function parsePort(portValue: string | PortConfig): number | null {
+export function parsePort(portValue: string | PortMapping): number | null {
   try {
-    // Handle long syntax (object format)
+    // Handle object format
     if (typeof portValue === 'object' && portValue !== null) {
+      // Support both new and legacy format
+      // if ('host' in portValue) {
+      //   return portValue.host || null;
+      // }
       return portValue.published || portValue.target || null;
     }
     
-    // Handle short syntax (string format)
+    // Handle string format
     if (typeof portValue === 'string') {
       // Remove any IP address prefix if present (e.g., "127.0.0.1:")
       const withoutIp = portValue.replace(/^\d+\.\d+\.\d+\.\d+:/, '');

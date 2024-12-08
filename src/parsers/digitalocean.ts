@@ -1,9 +1,10 @@
-import { BaseParser, ParserInfo, DockerCompose, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
-import { parseDockerImage } from '../utils/parseDockerImage';
+import { BaseParser, ParserInfo, TemplateFormat, formatResponse, DefaultParserConfig, DockerImageInfo } from './base-parser';
+import { ApplicationConfig } from '../types/container-config';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 import { digitalOceanParserServiceName } from '../utils/digitalOceanParserServiceName';
 import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
+import { constructImageString } from '../utils/constructImageString';
 
 const defaultParserConfig: DefaultParserConfig = {
   templateFormat: TemplateFormat.yaml,
@@ -12,12 +13,25 @@ const defaultParserConfig: DefaultParserConfig = {
   subscriptionName: 'basic-xxs'
 };
 
+/**
+ * Gets the registry type for DigitalOcean format based on Docker image info
+ */
+function getRegistryType(dockerImageInfo: DockerImageInfo): string {
+  switch (dockerImageInfo.registry_type) {
+    case 'GHCR':
+      return 'GITHUB';
+    case 'DOCKER_HUB':
+    default:
+      return 'DOCKER_HUB';
+  }
+}
+
 class DigitalOceanParser extends BaseParser {
-  parse(dockerCompose: DockerCompose, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
+  parse(config: ApplicationConfig, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
     const services: Array<any> = [];
     let isFirstService = true;
 
-    for (const [serviceName, serviceConfig] of Object.entries(dockerCompose.services)) {
+    for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
       const ports = new Set<number>();
       
       if (serviceConfig.ports) {
@@ -29,16 +43,20 @@ class DigitalOceanParser extends BaseParser {
         });
       }
 
-      const dockerImageInfo = parseDockerImage(serviceConfig.image);
+      // Use the image info directly since it's already a DockerImageInfo object
+      const dockerImageInfo = serviceConfig.image;
+      const imageString = constructImageString(dockerImageInfo);
+      const [repository, tag] = imageString.split(':');
+
       const routePath = isFirstService ? '/' : `/${serviceName}`;
       isFirstService = false;
 
       const service = {
         name: digitalOceanParserServiceName(serviceName),
         image: {
-          registry_type: 'DOCKER_HUB',
-          repository: dockerImageInfo.repository,
-          tag: dockerImageInfo.tag
+          registry_type: getRegistryType(dockerImageInfo),
+          repository: repository,
+          tag: tag || 'latest'
         },
         http_port: ports.size > 0 ? Array.from(ports)[0] : undefined,
         instance_count: 1,

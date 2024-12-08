@@ -1,4 +1,7 @@
+// src/parsers/base-parser.ts
+
 import * as YAML from 'yaml';
+import { ApplicationConfig } from '../types/container-config';
 
 export type ParserInfo = {
   providerWebsite: string;
@@ -32,30 +35,6 @@ export interface DockerImageInfo {
   digest?: string;
 }
 
-export interface DockerComposeService {
-  image: string;
-  ports?: string[];
-  command?: string;
-  restart?: string;
-  volumes?: string[];
-  environment?: { [key: string]: string };
-}
-
-export interface NormalizedDockerComposeService {
-  image: DockerImageInfo;
-  ports: string[];
-  command: string;
-  restart: string;
-  volumes: string[];
-  environment: { [key: string]: string };
-}
-
-export interface DockerCompose {
-  services: {
-    [key: string]: DockerComposeService;
-  };
-}
-
 export enum TemplateFormat {
   json = 'json',
   yaml = 'yaml',
@@ -73,15 +52,7 @@ export function formatResponse(response: string, templateFormat: TemplateFormat)
   }
 }
 
-
 export abstract class BaseParser {
-  abstract parse(dockerCompose: DockerCompose, templateFormat?: TemplateFormat): any;
+  abstract parse(config: ApplicationConfig, templateFormat?: TemplateFormat): any;
   abstract getInfo(): ParserInfo;
-}
-
-export class DockerComposeValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DockerComposeValidationError';
-  }
 }

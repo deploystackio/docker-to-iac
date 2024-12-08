@@ -1,5 +1,7 @@
-import { BaseParser, ParserInfo, DockerCompose, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
+import { BaseParser, ParserInfo, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
+import { ApplicationConfig } from '../types/container-config';
 import { getImageUrl } from '../utils/getImageUrl';
+import { constructImageString } from '../utils/constructImageString';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
@@ -11,24 +13,23 @@ const defaultParserConfig: DefaultParserConfig = {
   templateFormat: TemplateFormat.yaml
 };
 
-
 class RenderParser extends BaseParser {
-
-  parse(dockerCompose: DockerCompose, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
+  parse(config: ApplicationConfig, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
     const services: Array<any> = [];
 
-    for (const [serviceName, serviceConfig] of Object.entries(dockerCompose.services)) {
+    for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
       const ports = new Set<number>();
       
       if (serviceConfig.ports) {
-        serviceConfig.ports.forEach(port => {
-          const parsedPort = parsePort(port);
+        serviceConfig.ports.forEach(portMapping => {
+          const parsedPort = parsePort(`${portMapping.host}:${portMapping.container}`);
           if (parsedPort) {
             ports.add(parsedPort);
           }
         });
       }
 
+      // Use our environment variables parser
       const environmentVariables = parseEnvironmentVariables(serviceConfig.environment);
 
       // Add the first available port as the PORT environment variable
@@ -41,7 +42,7 @@ class RenderParser extends BaseParser {
         type: 'web',
         env: 'docker',
         runtime: 'image',
-        image: { url: getImageUrl(serviceConfig.image) },
+        image: { url: getImageUrl(constructImageString(serviceConfig.image)) },
         startCommand: parseCommand(serviceConfig.command),
         plan: defaultParserConfig.subscriptionName,
         region: defaultParserConfig.region,
