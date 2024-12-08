@@ -14,9 +14,21 @@ export function parsePort(portValue: string | PortConfig): number | null {
     
     // Handle short syntax (string format)
     if (typeof portValue === 'string') {
-      // Handle format like "8080:80" or '8080:80' or '8080'
-      const parts = portValue.toString().split(':');
-      return parseInt(parts[0], 10) || parseInt(parts[1], 10) || null;
+      // Remove any IP address prefix if present (e.g., "127.0.0.1:")
+      const withoutIp = portValue.replace(/^\d+\.\d+\.\d+\.\d+:/, '');
+      
+      // Split remaining string on colon
+      const parts = withoutIp.split(':');
+      
+      // For format "<host_port>:8765", we want the container port (8765)
+      // For format "8080:80", we want the host port (8080)
+      // If only one number is present, use that
+      if (parts.length > 1) {
+        const containerPort = parseInt(parts[parts.length - 1], 10);
+        return containerPort || null;
+      } else {
+        return parseInt(parts[0], 10) || null;
+      }
     }
     
     return null;
@@ -24,5 +36,4 @@ export function parsePort(portValue: string | PortConfig): number | null {
     console.warn(`Error parsing port value: ${portValue}`, error);
     return null;
   }
-
 }
