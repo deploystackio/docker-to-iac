@@ -1,92 +1,64 @@
-import * as YAML from 'yaml';
+import { BaseParser, ParserInfo, TemplateFormat } from './parsers/base-parser';
+import { ApplicationConfig } from './types/container-config';
 import cloudFormationParserInstance from './parsers/aws-cloudformation';
 import renderParserInstance from './parsers/render';
 import digitalOceanParserInstance from './parsers/digitalocean';
-import { parseDockerImage } from './utils/parseDockerImage';
-import { BaseParser, ParserInfo, TemplateFormat, DockerCompose, DockerComposeService, DockerComposeValidationError, NormalizedDockerComposeService } from './parsers/base-parser';
+import { createSourceParser } from './sources/factory';
 
-import { validateDockerCompose } from './utils/validateDockerCompose';
+// Add new types for our updated API
+export type TranslateOptions = {
+  source: 'compose' | 'run';
+  target: string;
+  templateFormat?: TemplateFormat;
+};
 
 // List of all available parsers
 const parsers: BaseParser[] = [
   cloudFormationParserInstance,
   renderParserInstance,
   digitalOceanParserInstance,
-  // Add new parsers here in the future as needed
 ];
 
-function translate(dockerComposeContent: string, languageAbbreviation: string, templateFormat?: TemplateFormat): any {
+function translate(content: string, options: TranslateOptions): any {
   try {
-    const dockerCompose = YAML.parse(dockerComposeContent) as DockerCompose;
-    validateDockerCompose(dockerCompose);
-
-    const parser = parsers.find(parser => parser.getInfo().languageAbbreviation.toLowerCase() === languageAbbreviation.toLowerCase());
+    const parser = parsers.find(
+      p => p.getInfo().languageAbbreviation.toLowerCase() === options.target.toLowerCase()
+    );
+    
     if (!parser) {
-      throw new Error(`Unsupported target language: ${languageAbbreviation}`);
+      throw new Error(`Unsupported target language: ${options.target}`);
     }
 
-    const translatedConfig = parser.parse(dockerCompose, templateFormat);
+    const sourceParser = createSourceParser(options.source);
+    if (!sourceParser.validate(content)) {
+      throw new Error(`Invalid ${options.source} content`);
+    }
+
+    const containerConfig = sourceParser.parse(content);
+    const translatedConfig = parser.parse(containerConfig, options.templateFormat);
+    
     return translatedConfig;
   } catch (e) {
-    if (e instanceof DockerComposeValidationError) {
-      console.error(`Validation Error: ${e.message}`);
-    } else {
-      console.error(`Error translating docker-compose content: ${e}`);
-    }
+    console.error(`Error translating content: ${e}`);
     throw e;
   }
 }
 
-function listServices(dockerComposeContent: string): { [key: string]: NormalizedDockerComposeService } {
+function listServices(content: string, sourceType: 'compose' | 'run' = 'compose'): ApplicationConfig['services'] {
   try {
-    const dockerCompose = YAML.parse(dockerComposeContent) as DockerCompose;
-    validateDockerCompose(dockerCompose);
-
-    const normalizedServices: { [key: string]: NormalizedDockerComposeService } = {};
-    
-    for (const [serviceName, service] of Object.entries<DockerComposeService>(dockerCompose.services)) {
-      // Normalize environment variables to a consistent object format
-      let normalizedEnv: { [key: string]: string } = {};
-      
-      if (service.environment) {
-        if (Array.isArray(service.environment)) {
-          // Handle array format (["KEY=value", "OTHER_KEY=othervalue"])
-          service.environment.forEach(env => {
-            const [key, value] = env.split('=');
-            normalizedEnv[key] = value || '';
-          });
-        } else {
-          // Handle object format ({ KEY: "value", OTHER_KEY: "othervalue" })
-          normalizedEnv = service.environment;
-        }
-      }
-
-      // Parse image information
-      const imageInfo = parseDockerImage(service.image);
-
-      normalizedServices[serviceName] = {
-        image: imageInfo,
-        ports: service.ports || [],
-        command: service.command || '',
-        restart: service.restart || '',
-        volumes: service.volumes || [],
-        environment: normalizedEnv
-      };
-    }
-
-    return normalizedServices;
+    const sourceParser = createSourceParser(sourceType);
+    const config = sourceParser.parse(content);
+    return config.services;
   } catch (e) {
-    if (e instanceof DockerComposeValidationError) {
-      console.error(`Validation Error: ${e.message}`);
-    } else {
-      console.error(`Error parsing docker-compose content: ${e}`);
-    }
+    console.error(`Error listing services: ${e}`);
     throw e;
   }
 }
 
 function getParserInfo(languageAbbreviation: string): ParserInfo {
-  const parser = parsers.find(parser => parser.getInfo().languageAbbreviation.toLowerCase() === languageAbbreviation.toLowerCase());
+  const parser = parsers.find(
+    parser => parser.getInfo().languageAbbreviation.toLowerCase() === languageAbbreviation.toLowerCase()
+  );
   if (!parser) {
     throw new Error(`Unsupported target language: ${languageAbbreviation}`);
   }
@@ -97,9 +69,8 @@ function listAllParsers(): ParserInfo[] {
   return parsers.map(parser => parser.getInfo());
 }
 
-
 export { 
-  translate, 
+  translate,
   getParserInfo, 
   listAllParsers,
   listServices,

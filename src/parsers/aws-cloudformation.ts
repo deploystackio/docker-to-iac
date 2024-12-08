@@ -1,5 +1,7 @@
-import { BaseParser, ParserInfo, DockerCompose, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
+import { BaseParser, ParserInfo, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
+import { ApplicationConfig } from '../types/container-config';
 import { getImageUrl } from '../utils/getImageUrl';
+import { constructImageString } from '../utils/constructImageString';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
@@ -22,7 +24,7 @@ class CloudFormationParser extends BaseParser {
     return output;
   }
 
-  parse(dockerCompose: DockerCompose, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
+  parse(config: ApplicationConfig, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
     let response: any = {};
     const parameters: any = {};
     const resources: any = {};
@@ -76,7 +78,7 @@ class CloudFormationParser extends BaseParser {
     };
 
     // Process each service in the docker compose
-    for (const [serviceName, serviceConfig] of Object.entries(dockerCompose.services)) {
+    for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
       resources[`LogGroup${serviceName}`] = {
         Type: 'AWS::Logs::LogGroup',
         Properties: {
@@ -112,7 +114,7 @@ class CloudFormationParser extends BaseParser {
             {
               Name: serviceName,
               Command: commandArray,
-              Image: getImageUrl(serviceConfig.image),
+              Image: getImageUrl(constructImageString(serviceConfig.image)),
               PortMappings: Array.from(ports).map(port => ({
                 ContainerPort: port
               })),

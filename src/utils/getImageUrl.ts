@@ -1,5 +1,3 @@
-// file: utils/getImageUrl.ts
-
 import { RegistryType } from '../parsers/base-parser';
 import { parseDockerImage } from './parseDockerImage';
 
