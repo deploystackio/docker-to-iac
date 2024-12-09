@@ -2,6 +2,9 @@ import { SourceParser, SourceValidationError } from '../base';
 import { ApplicationConfig, ContainerConfig } from '../../types/container-config';
 import { parseDockerImage } from '../../utils/parseDockerImage';
 import { RegistryType, DockerImageInfo } from '../../parsers/base-parser';
+import { normalizePort } from '../../utils/normalizePort';
+import { normalizeVolume } from '../../utils/normalizeVolume';
+import { normalizeEnvironment } from '../../utils/normalizeEnvironment';
 
 export class RunCommandParser implements SourceParser {
   parse(content: string): ApplicationConfig {
@@ -125,26 +128,14 @@ export class RunCommandParser implements SourceParser {
   }
 
   private parsePortMapping(portString: string) {
-    const [hostPart, containerPart] = portString.split(':');
-    return {
-      host: parseInt(hostPart, 10),
-      container: containerPart ? parseInt(containerPart, 10) : parseInt(hostPart, 10),
-      protocol: portString.includes('/') ? portString.split('/')[1] : undefined
-    };
+    return normalizePort(portString);
   }
 
   private parseEnvironmentVariable(envString: string) {
-    const [key, ...valueParts] = envString.split('=');
-    const value = valueParts.join('='); // Handle values that might contain '='
-    return { [key]: value };
+    return normalizeEnvironment(envString);
   }
 
   private parseVolumeMapping(volumeString: string) {
-    const [host, container, mode] = volumeString.split(':');
-    return {
-      host,
-      container: container || host,
-      mode: mode || undefined
-    };
+    return normalizeVolume(volumeString);
   }
 }
