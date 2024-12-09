@@ -4,10 +4,6 @@ export function parsePort(portValue: string | PortMapping): number | null {
   try {
     // Handle object format
     if (typeof portValue === 'object' && portValue !== null) {
-      // Support both new and legacy format
-      // if ('host' in portValue) {
-      //   return portValue.host || null;
-      // }
       return portValue.published || portValue.target || null;
     }
     
@@ -16,8 +12,11 @@ export function parsePort(portValue: string | PortMapping): number | null {
       // Remove any IP address prefix if present (e.g., "127.0.0.1:")
       const withoutIp = portValue.replace(/^\d+\.\d+\.\d+\.\d+:/, '');
       
+      // Handle environment variable with default value format ${VAR:-default}
+      const processedPort = withoutIp.replace(/\${[^}]+:-(\d+)}/g, '$1');
+      
       // Split remaining string on colon
-      const parts = withoutIp.split(':');
+      const parts = processedPort.split(':');
       
       // For format "<host_port>:8765", we want the container port (8765)
       // For format "8080:80", we want the host port (8080)

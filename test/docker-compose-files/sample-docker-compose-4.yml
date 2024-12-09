@@ -1,0 +1,38 @@
+services:
+  app:
+    container_name: directory-lister-app
+    build: .
+    image: phlak/directory-lister:dev
+    depends_on:
+      - memcached
+      - redis
+    ports:
+      - ${APP_PORT:-80}:80
+    extra_hosts:
+      - host.docker.internal:${DOCKER_HOST_IP:-172.17.0.1}
+    user: ${HOST_USER_ID:-0}:${HOST_GROUP_ID:-0}
+    volumes:
+      - ./:/var/www/html
+      - ./.docker/php/config/php.ini:/usr/local/etc/php/php.ini
+      - ./.docker/apache2/config/000-default.conf:/etc/apache2/sites-available/000-default.conf
+
+  memcached:
+    container_name: directory-lister-memcached
+    ports:
+      - ${MEMCACHED_PORT:-11211}:11211
+    image: memcached:1.6
+
+  redis:
+    container_name: directory-lister-redis
+    ports:
+      - ${REDIS_PORT:-6379}:6379
+    image: redis:6.0
+
+  npm:
+    container_name: directory-lister-npm
+    image: phlak/directory-lister:dev
+    volumes:
+      - ./:/var/www/html
+    user: ${HOST_USER_ID:-0}:${HOST_GROUP_ID:-0}
+    command: npm run watch
+  

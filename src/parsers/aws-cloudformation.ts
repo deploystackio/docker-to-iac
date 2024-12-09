@@ -89,9 +89,13 @@ class CloudFormationParser extends BaseParser {
       const ports = new Set<number>();
       if (serviceConfig.ports) {
         serviceConfig.ports.forEach(port => {
-          const parsedPort = parsePort(port);
-          if (parsedPort) {
-            ports.add(parsedPort);
+          if (typeof port === 'object' && port !== null) {
+            ports.add(port.container);
+          } else {
+            const parsedPort = parsePort(port);
+            if (parsedPort) {
+              ports.add(parsedPort);
+            }
           }
         });
       }

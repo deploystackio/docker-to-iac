@@ -4,6 +4,9 @@ import { validateDockerCompose } from './validate';
 import * as YAML from 'yaml';
 import { parseDockerImage } from '../../utils/parseDockerImage';
 import { parsePort } from '../../utils/parsePort';
+import { normalizePort } from '../../utils/normalizePort';
+import { normalizeVolume } from '../../utils/normalizeVolume';
+import { normalizeEnvironment } from '../../utils/normalizeEnvironment';
 
 interface DockerComposeService {
   image: string;
@@ -48,28 +51,10 @@ export class ComposeParser implements SourceParser {
   }
 
   private normalizeService(service: DockerComposeService): ContainerConfig {
-    // Normalize environment variables
-    let normalizedEnv: { [key: string]: string } = {};
-    if (service.environment) {
-      if (Array.isArray(service.environment)) {
-        service.environment.forEach(env => {
-          const [key, value] = env.split('=');
-          normalizedEnv[key] = value || '';
-        });
-      } else {
-        normalizedEnv = service.environment;
-      }
-    }
-
     // Normalize ports
     const ports = (service.ports || []).map(port => {
       if (typeof port === 'string') {
-        const [hostStr, containerStr] = port.split(':');
-        return {
-          host: parseInt(hostStr, 10),
-          container: parseInt(containerStr || hostStr, 10),
-          protocol: port.includes('/') ? port.split('/')[1] : undefined
-        };
+        return normalizePort(port);
       }
       return {
         host: parsePort(port) || 0,
@@ -77,21 +62,11 @@ export class ComposeParser implements SourceParser {
       };
     });
 
-    // Normalize volumes
-    const volumes = (service.volumes || []).map(volume => {
-      const [host, container, mode] = volume.split(':');
-      return {
-        host,
-        container: container || host,
-        mode
-      };
-    });
-
     return {
       image: parseDockerImage(service.image),
       ports,
-      volumes,
-      environment: normalizedEnv,
+      volumes: (service.volumes || []).map(volume => normalizeVolume(volume)),
+      environment: normalizeEnvironment(service.environment),
       command: service.command,
       restart: service.restart
     };
