@@ -7,9 +7,10 @@ import { parseCommand } from '../utils/parseCommand';
 import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
 
 const defaultParserConfig: DefaultParserConfig = {
-  subscriptionName: 'free',
+  subscriptionName: 'starter',
   region: 'oregon',
   fileName: 'render.yaml',
+  diskSizeGB: 10,
   templateFormat: TemplateFormat.yaml
 };
 
@@ -29,10 +30,8 @@ class RenderParser extends BaseParser {
         });
       }
 
-      // Use our environment variables parser
       const environmentVariables = parseEnvironmentVariables(serviceConfig.environment);
 
-      // Add the first available port as the PORT environment variable
       if (ports.size > 0) {
         environmentVariables['PORT'] = Array.from(ports)[0];
       }
@@ -52,6 +51,23 @@ class RenderParser extends BaseParser {
         }))
       };
 
+      // Add disk configuration if volumes are present
+      if (serviceConfig.volumes && serviceConfig.volumes.length > 0) {
+        // Take the first volume - Render only supports one disk per service
+        const volume = serviceConfig.volumes[0];
+        
+        service.disk = {
+          name: this.generateDiskName(serviceName, volume.container),
+          mountPath: volume.container,
+          sizeGB: defaultParserConfig.diskSizeGB
+        };
+
+        // If there are more volumes, log a warning
+        if (serviceConfig.volumes.length > 1) {
+          console.warn(`Warning: Service ${serviceName} has multiple volumes. Only the first volume will be configured as a Render disk.`);
+        }
+      }
+
       services.push(service);
     }
 
@@ -60,6 +76,22 @@ class RenderParser extends BaseParser {
     };
     
     return formatResponse(JSON.stringify(renderConfig, null, 2), templateFormat);
+  }
+
+  private generateDiskName(serviceName: string, mountPath: string): string {
+    // Create a disk name from service name and mount path
+    const sanitizedPath = mountPath
+      .replace(/^\//, '')
+      .replace(/[^a-zA-Z0-9-]/g, '-');
+    
+    // Combine and truncate to 63 characters (common DNS label length limit)
+    let name = `${serviceName}-${sanitizedPath}`.toLowerCase();
+    if (name.length > 63) {
+      name = name.substring(0, 63);
+      name = name.replace(/-+$/, '');
+    }
+    
+    return name;
   }
 
   getInfo(): ParserInfo {
