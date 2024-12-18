@@ -17,6 +17,7 @@ export type DefaultParserConfig = {
   templateFormat: TemplateFormat;
   cpu?: any;
   memory?: any;
+  diskSizeGB?: number;
   region?: string;
   fileName: string;
   subscriptionName?: string;
