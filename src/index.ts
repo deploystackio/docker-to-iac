@@ -7,15 +7,8 @@ import digitalOceanParserInstance from './parsers/digitalocean';
 import { createSourceParser } from './sources/factory';
 import { parseEnvFile } from './utils/parseEnvFile';
 
-// Store for generated configurations
-type ProcessedConfigStore = {
-  config: ApplicationConfig;
-  content: string;
-  envConfig: EnvironmentVariableGenerationConfig | null;
-  envVariables: Record<string, string> | null;
-};
-
-const processedConfigs = new Map<string, ProcessedConfigStore>();
+// Store for generated environment variables
+const generatedEnvVars = new Map<string, Record<string, Record<string, string>>>();
 
 export type TranslateOptions = {
   source: 'compose' | 'run';
@@ -23,7 +16,7 @@ export type TranslateOptions = {
   templateFormat?: TemplateFormat;
   environmentVariableGeneration?: EnvironmentVariableGenerationConfig;
   environmentVariables?: Record<string, string>;
-  persistenceKey?: string; // New optional parameter for persistence
+  persistenceKey?: string;
 };
 
 const parsers: BaseParser[] = [
@@ -31,6 +24,32 @@ const parsers: BaseParser[] = [
   renderParserInstance,
   digitalOceanParserInstance,
 ];
+
+function getOrCreateEnvVars(
+  serviceName: string,
+  imageConfig: any,
+  envGeneration?: EnvironmentVariableGenerationConfig,
+  persistenceKey?: string
+): Record<string, string> {
+  if (!persistenceKey) {
+    return {};
+  }
+
+  // Get or initialize service-level storage
+  if (!generatedEnvVars.has(persistenceKey)) {
+    generatedEnvVars.set(persistenceKey, {});
+  }
+  const keyStore = generatedEnvVars.get(persistenceKey)!;
+  
+  // Return existing variables if already generated
+  if (keyStore[serviceName]) {
+    return keyStore[serviceName];
+  }
+
+  // Store will be populated by the source parser
+  keyStore[serviceName] = {};
+  return keyStore[serviceName];
+}
 
 function getProcessedConfig(
   content: string, 
@@ -41,42 +60,27 @@ function getProcessedConfig(
     persistenceKey?: string;
   }
 ): ApplicationConfig {
-  const { persistenceKey } = options;
-
-  // If persistence key is provided, try to get stored config
-  if (persistenceKey) {
-    const stored = processedConfigs.get(persistenceKey);
-    if (stored && 
-        stored.content === content && 
-        JSON.stringify(stored.envConfig) === JSON.stringify(options.envGeneration) &&
-        JSON.stringify(stored.envVariables) === JSON.stringify(options.envVariables)) {
-      return stored.config;
-    }
-  }
-
-  // Process the configuration
   const sourceParser = createSourceParser(sourceType);
   if (!sourceParser.validate(content)) {
     throw new Error(`Invalid ${sourceType} content`);
   }
 
-  // Parse and process environment variables
-  const processedConfig = sourceParser.parse(content, {
+  // Inject the environment variable getter
+  const envVarGetter = (serviceName: string, imageConfig: any) => 
+    getOrCreateEnvVars(serviceName, imageConfig, options.envGeneration, options.persistenceKey);
+
+  // Parse with environment variable persistence
+  return sourceParser.parse(content, {
     environmentGeneration: options.envGeneration,
-    environmentVariables: options.envVariables
+    environmentVariables: options.envVariables,
+    getPersistedEnvVars: envVarGetter,
+    setPersistedEnvVars: (serviceName: string, vars: Record<string, string>) => {
+      if (options.persistenceKey) {
+        const keyStore = generatedEnvVars.get(options.persistenceKey)!;
+        keyStore[serviceName] = vars;
+      }
+    }
   });
-
-  // Store the processed config if persistence key is provided
-  if (persistenceKey) {
-    processedConfigs.set(persistenceKey, {
-      config: processedConfig,
-      content,
-      envConfig: options.envGeneration || null,
-      envVariables: options.envVariables || null
-    });
-  }
-
-  return processedConfig;
 }
 
 function translate(content: string, options: TranslateOptions): any {
@@ -121,12 +125,11 @@ function listServices(
   }
 }
 
-// Function to clear stored configurations
-function clearStoredConfigs(persistenceKey?: string): void {
+function clearStoredEnvVars(persistenceKey?: string): void {
   if (persistenceKey) {
-    processedConfigs.delete(persistenceKey);
+    generatedEnvVars.delete(persistenceKey);
   } else {
-    processedConfigs.clear();
+    generatedEnvVars.clear();
   }
 }
 
@@ -150,5 +153,5 @@ export {
   listAllParsers,
   listServices,
   parseEnvFile,
-  clearStoredConfigs,
+  clearStoredEnvVars,
 };

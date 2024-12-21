@@ -7,18 +7,46 @@ import { join } from 'path';
 let hasTestFailed = false;
 
 // Constants for directories
+const ENV_CONFIG_DIR = join(__dirname, 'environment-variable-config');
 const DOCKER_COMPOSE_DIR = join(__dirname, 'docker-compose-files');
 const DOCKER_RUN_DIR = join(__dirname, 'docker-run-files');  // New directory for docker run files
 const OUTPUT_DIR = join(__dirname, 'output');
 const DOCKER_RUN_OUTPUT_DIR = join(OUTPUT_DIR, 'docker-run');
 const DOCKER_COMPOSE_OUTPUT_DIR = join(OUTPUT_DIR, 'docker-compose');
 
-// Ensure output directories exist
 [OUTPUT_DIR, DOCKER_RUN_OUTPUT_DIR, DOCKER_COMPOSE_OUTPUT_DIR].forEach(dir => {
   if (!existsSync(dir)) {
     mkdirSync(dir);
   }
 });
+
+[OUTPUT_DIR, DOCKER_RUN_OUTPUT_DIR, DOCKER_COMPOSE_OUTPUT_DIR, ENV_CONFIG_DIR].forEach(dir => {
+  if (!existsSync(dir)) {
+    mkdirSync(dir);
+  }
+});
+
+function loadEnvironmentConfigs(): Record<string, any> {
+  const envConfigFiles = readdirSync(ENV_CONFIG_DIR)
+    .filter(file => file.endsWith('.json'));
+
+  if (envConfigFiles.length === 0) {
+    console.log('ℹ️ No environment config files found in test/environment-variable-config');
+    return {};
+  }
+
+  return envConfigFiles.reduce((configs, filename) => {
+    try {
+      const content = readFileSync(join(ENV_CONFIG_DIR, filename), 'utf8');
+      const config = JSON.parse(content);
+      return { ...configs, ...config };
+    } catch (error) {
+      console.error(`❌ Error loading environment config from ${filename}:`, error);
+      hasTestFailed = true;
+      return configs;
+    }
+  }, {});
+}
 
 // Test listAllParsers functionality
 console.log('\n=== Testing listAllParsers ===');
@@ -54,6 +82,8 @@ if (dockerRunFiles.length === 0) {
   hasTestFailed = true;
 }
 
+const environmentConfigs = loadEnvironmentConfigs();
+
 // Process each docker run file
 dockerRunFiles.forEach((filename) => {
   console.log(`\n=== Processing Docker Run File ${filename} ===`);
@@ -73,7 +103,7 @@ dockerRunFiles.forEach((filename) => {
   // Test listServices for each command
   console.log(`\nTesting listServices for Docker Run File ${filename}`);
   try {
-    const services = listServices(command, 'run');
+    const services = listServices(command, 'run', environmentConfigs);
     console.log('✓ Services found:', services);
     writeFileSync(
       join(commandOutputDir, 'services.json'),
@@ -99,7 +129,8 @@ dockerRunFiles.forEach((filename) => {
         const result = translate(command, {
           source: 'run',
           target: parser.languageAbbreviation,
-          templateFormat: format as TemplateFormat
+          templateFormat: format as TemplateFormat,
+          environmentVariableGeneration: environmentConfigs
         });
 
         const extension = format === TemplateFormat.yaml ? 'yml' : format;
@@ -162,7 +193,7 @@ dockerComposeFiles.forEach(filename => {
   // Test listServices for each file
   console.log(`\nTesting listServices for ${filename}`);
   try {
-    const services = listServices(dockerComposeContent, 'compose');
+    const services = listServices(dockerComposeContent, 'compose', environmentConfigs);
     console.log('✓ Services found:', services);
     writeFileSync(
       join(fileOutputDir, 'services.json'),
@@ -188,7 +219,8 @@ dockerComposeFiles.forEach(filename => {
         const result = translate(dockerComposeContent, {
           source: 'compose',
           target: parser.languageAbbreviation,
-          templateFormat: format as TemplateFormat
+          templateFormat: format as TemplateFormat,
+          environmentVariableGeneration: environmentConfigs
         });
 
         const extension = format === TemplateFormat.yaml ? 'yml' : format;

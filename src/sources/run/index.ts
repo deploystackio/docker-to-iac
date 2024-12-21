@@ -1,13 +1,15 @@
-import { SourceParser, SourceValidationError } from '../base';
+import { SourceParser, SourceValidationError, EnvironmentOptions } from '../base';
 import { ApplicationConfig, ContainerConfig } from '../../types/container-config';
+import { EnvironmentVariableGenerationConfig } from '../../types/environment-config';
 import { parseDockerImage } from '../../utils/parseDockerImage';
 import { RegistryType, DockerImageInfo } from '../../parsers/base-parser';
 import { normalizePort } from '../../utils/normalizePort';
 import { normalizeVolume } from '../../utils/normalizeVolume';
 import { normalizeEnvironment } from '../../utils/normalizeEnvironment';
+import { processEnvironmentVariablesGeneration } from '../../utils/processEnvironmentVariablesGeneration';
 
 export class RunCommandParser implements SourceParser {
-  parse(content: string): ApplicationConfig {
+  parse(content: string, environmentOptions?: EnvironmentOptions): ApplicationConfig {
     this.validate(content);
 
     // Split the command into parts, handling quotes properly
@@ -76,11 +78,40 @@ export class RunCommandParser implements SourceParser {
       i++;
     }
 
+    if (environmentOptions) {
+      let processedEnv: Record<string, string> = { ...config.environment };
+  
+      // If we have auto-generation config, use it
+      if (environmentOptions.environmentGeneration) {
+        processedEnv = processEnvironmentVariablesGeneration(
+          processedEnv,
+          config.image,
+          environmentOptions.environmentGeneration
+        );
+      }
+  
+      // Then apply any .env file substitutions if they exist
+      if (environmentOptions.environmentVariables) {
+        for (const [key, value] of Object.entries(processedEnv)) {
+          if (typeof value === 'string' && value.startsWith('${') && value.endsWith('}')) {
+            const envVarName = value.slice(2, -1); // Remove ${ and }
+            if (environmentOptions.environmentVariables[envVarName]) {
+              processedEnv[key] = environmentOptions.environmentVariables[envVarName];
+            }
+          }
+        }
+      }
+  
+      config.environment = processedEnv;
+    }
+
     return {
       services: {
         'default': config
       }
     };
+    
+
   }
 
   validate(content: string): boolean {

@@ -1,5 +1,6 @@
-import { SourceParser, SourceValidationError } from '../base';
+import { SourceParser, SourceValidationError, EnvironmentOptions } from '../base';
 import { ApplicationConfig, ContainerConfig } from '../../types/container-config';
+import { processEnvironmentVariablesGeneration } from '../../utils/processEnvironmentVariablesGeneration';
 import { validateDockerCompose } from './validate';
 import * as YAML from 'yaml';
 import { parseDockerImage } from '../../utils/parseDockerImage';
@@ -24,14 +25,14 @@ interface DockerCompose {
 }
 
 export class ComposeParser implements SourceParser {
-  parse(content: string): ApplicationConfig {
+  parse(content: string, environmentOptions?: EnvironmentOptions): ApplicationConfig {
     const dockerCompose = YAML.parse(content) as DockerCompose;
-    this.validate(content); // Will throw if invalid
+    this.validate(content);
 
     const services: { [key: string]: ContainerConfig } = {};
     
     for (const [serviceName, service] of Object.entries(dockerCompose.services)) {
-      services[serviceName] = this.normalizeService(service);
+      services[serviceName] = this.normalizeService(serviceName, service, environmentOptions);
     }
 
     return { services };
@@ -50,8 +51,11 @@ export class ComposeParser implements SourceParser {
     }
   }
 
-  private normalizeService(service: DockerComposeService): ContainerConfig {
-    // Normalize ports
+  private normalizeService(
+    serviceName: string,
+    service: DockerComposeService, 
+    environmentOptions?: EnvironmentOptions
+  ): ContainerConfig {
     const ports = (service.ports || []).map(port => {
       if (typeof port === 'string') {
         return normalizePort(port);
@@ -62,11 +66,38 @@ export class ComposeParser implements SourceParser {
       };
     });
 
+    const image = parseDockerImage(service.image);
+    
+    // Get persisted environment variables if available
+    const persistedEnv = environmentOptions?.getPersistedEnvVars?.(serviceName, image) || {};
+    
+    // First, normalize the service's environment variables
+    const serviceEnv = normalizeEnvironment(service.environment);
+    
+    // Then, merge with provided environment variables and persisted variables
+    const mergedEnv = {
+      ...serviceEnv,
+      ...persistedEnv,
+      ...(environmentOptions?.environmentVariables || {})
+    };
+    
+    // Finally, process auto-generated variables
+    const processedEnv = processEnvironmentVariablesGeneration(
+      mergedEnv,
+      image,
+      environmentOptions?.environmentGeneration
+    );
+
+    // Store the processed environment variables if persistence is enabled
+    if (environmentOptions?.setPersistedEnvVars) {
+      environmentOptions.setPersistedEnvVars(serviceName, processedEnv);
+    }
+
     return {
-      image: parseDockerImage(service.image),
+      image,
       ports,
       volumes: (service.volumes || []).map(volume => normalizeVolume(volume)),
-      environment: normalizeEnvironment(service.environment),
+      environment: processedEnv,
       command: service.command,
       restart: service.restart
     };
