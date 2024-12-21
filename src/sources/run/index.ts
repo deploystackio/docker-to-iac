@@ -1,6 +1,5 @@
 import { SourceParser, SourceValidationError, EnvironmentOptions } from '../base';
 import { ApplicationConfig, ContainerConfig } from '../../types/container-config';
-import { EnvironmentVariableGenerationConfig } from '../../types/environment-config';
 import { parseDockerImage } from '../../utils/parseDockerImage';
 import { RegistryType, DockerImageInfo } from '../../parsers/base-parser';
 import { normalizePort } from '../../utils/normalizePort';
@@ -12,7 +11,6 @@ export class RunCommandParser implements SourceParser {
   parse(content: string, environmentOptions?: EnvironmentOptions): ApplicationConfig {
     this.validate(content);
 
-    // Split the command into parts, handling quotes properly
     const parts = this.splitCommand(content.trim());
     
     if (parts[0] !== 'docker' || parts[1] !== 'run') {
@@ -64,14 +62,12 @@ export class RunCommandParser implements SourceParser {
             }
             break;
 
-          // Handle image name (it's the last non-flag argument)
           default:
             if (!arg.startsWith('-')) {
               config.image = parseDockerImage(arg);
             }
         }
       } else {
-        // This must be the image name
         config.image = parseDockerImage(arg);
       }
       
@@ -79,8 +75,17 @@ export class RunCommandParser implements SourceParser {
     }
 
     if (environmentOptions) {
-      let processedEnv: Record<string, string> = { ...config.environment };
-  
+      const serviceName = 'default';  // Docker run always uses 'default' as service name
+      
+      // Get persisted environment variables if available
+      const persistedEnv = environmentOptions.getPersistedEnvVars?.(serviceName, config.image) || {};
+      
+      // Start with original environment variables
+      let processedEnv: Record<string, string> = {
+        ...config.environment,
+        ...persistedEnv
+      };
+
       // If we have auto-generation config, use it
       if (environmentOptions.environmentGeneration) {
         processedEnv = processEnvironmentVariablesGeneration(
@@ -89,19 +94,24 @@ export class RunCommandParser implements SourceParser {
           environmentOptions.environmentGeneration
         );
       }
-  
+
       // Then apply any .env file substitutions if they exist
       if (environmentOptions.environmentVariables) {
         for (const [key, value] of Object.entries(processedEnv)) {
           if (typeof value === 'string' && value.startsWith('${') && value.endsWith('}')) {
-            const envVarName = value.slice(2, -1); // Remove ${ and }
+            const envVarName = value.slice(2, -1);
             if (environmentOptions.environmentVariables[envVarName]) {
               processedEnv[key] = environmentOptions.environmentVariables[envVarName];
             }
           }
         }
       }
-  
+
+      // Store the processed environment variables if persistence is enabled
+      if (environmentOptions.setPersistedEnvVars) {
+        environmentOptions.setPersistedEnvVars(serviceName, processedEnv);
+      }
+
       config.environment = processedEnv;
     }
 
