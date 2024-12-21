@@ -1,5 +1,6 @@
-import { BaseParser, ParserInfo, TemplateFormat } from './parsers/base-parser';
+import { BaseParser, ParserInfo } from './parsers/base-parser';
 import { ApplicationConfig } from './types/container-config';
+import type { ListServicesOptions, TranslateOptions } from './types/container-config';
 import { EnvironmentVariableGenerationConfig } from './types/environment-config';
 import cloudFormationParserInstance from './parsers/aws-cloudformation';
 import renderParserInstance from './parsers/render';
@@ -9,15 +10,6 @@ import { parseEnvFile } from './utils/parseEnvFile';
 
 // Store for generated environment variables
 const generatedEnvVars = new Map<string, Record<string, Record<string, string>>>();
-
-export type TranslateOptions = {
-  source: 'compose' | 'run';
-  target: string;
-  templateFormat?: TemplateFormat;
-  environmentVariableGeneration?: EnvironmentVariableGenerationConfig;
-  environmentVariables?: Record<string, string>;
-  persistenceKey?: string;
-};
 
 const parsers: BaseParser[] = [
   cloudFormationParserInstance,
@@ -107,16 +99,12 @@ function translate(content: string, options: TranslateOptions): any {
   }
 }
 
-function listServices(
-  content: string, 
-  sourceType: 'compose' | 'run' = 'compose', 
-  environmentGeneration?: EnvironmentVariableGenerationConfig,
-  persistenceKey?: string
-): ApplicationConfig['services'] {
+function listServices(content: string, options: ListServicesOptions): ApplicationConfig['services'] {
   try {
-    const config = getProcessedConfig(content, sourceType, {
-      envGeneration: environmentGeneration,
-      persistenceKey
+    const config = getProcessedConfig(content, options.source, {
+      envGeneration: options.environmentVariableGeneration,
+      envVariables: options.environmentVariables,
+      persistenceKey: options.persistenceKey
     });
     return config.services;
   } catch (e) {
@@ -153,5 +141,5 @@ export {
   listAllParsers,
   listServices,
   parseEnvFile,
-  clearStoredEnvVars,
+  clearStoredEnvVars
 };

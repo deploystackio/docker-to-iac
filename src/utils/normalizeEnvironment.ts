@@ -4,31 +4,45 @@ export interface EnvironmentConfig {
 
 type EnvironmentInput = string[] | { [key: string]: string } | string | undefined;
 
-export function normalizeEnvironment(env: EnvironmentInput): EnvironmentConfig {
+function substituteEnvVariables(value: string, envVariables?: Record<string, string>): string {
+  if (!envVariables) return value;
+  
+  return value.replace(/\${([^}]+)}/g, (match, varName) => {
+    return envVariables[varName] || match;
+  });
+}
+
+export function normalizeEnvironment(
+  env: EnvironmentInput,
+  envVariables?: Record<string, string>
+): EnvironmentConfig {
   if (!env) {
     return {};
   }
 
-  // Handle string format (single env var), e.g. "KEY=value"
+  // Handle string format (single env var)
   if (typeof env === 'string') {
     const [key, ...valueParts] = env.split('=');
-    const value = valueParts.join('='); // Handle values that might contain '='
+    const rawValue = valueParts.join('=');
+    const value = substituteEnvVariables(rawValue, envVariables);
     return { [key]: value || '' };
   }
 
-  // Handle array format, e.g. ["KEY1=value1", "KEY2=value2"]
+  // Handle array format
   if (Array.isArray(env)) {
     return env.reduce((acc: EnvironmentConfig, curr: string) => {
       const [key, ...valueParts] = curr.split('=');
-      acc[key] = valueParts.join('=') || '';
+      const rawValue = valueParts.join('=');
+      acc[key] = substituteEnvVariables(rawValue, envVariables) || '';
       return acc;
     }, {});
   }
 
-  // Handle object format, e.g. { KEY1: "value1", KEY2: "value2" }
+  // Handle object format
   if (typeof env === 'object') {
     return Object.entries(env).reduce((acc: EnvironmentConfig, [key, value]) => {
-      acc[key] = value?.toString() || '';
+      const stringValue = value?.toString() || '';
+      acc[key] = substituteEnvVariables(stringValue, envVariables);
       return acc;
     }, {});
   }

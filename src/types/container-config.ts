@@ -1,4 +1,6 @@
 import { DockerImageInfo } from '../parsers/base-parser';
+import { EnvironmentVariableGenerationConfig } from './environment-config';
+import { TemplateFormat } from '../parsers/base-parser';
 
 export interface PortMapping {
   host: number;
@@ -29,3 +31,19 @@ export interface ApplicationConfig {
     [key: string]: ContainerConfig;
   };
 }
+
+export type TranslateOptions = {
+  source: 'compose' | 'run';
+  target: string;
+  templateFormat?: TemplateFormat;
+  environmentVariableGeneration?: EnvironmentVariableGenerationConfig;
+  environmentVariables?: Record<string, string>;
+  persistenceKey?: string;
+};
+
+export type ListServicesOptions = {
+  source: 'compose' | 'run';
+  environmentVariableGeneration?: EnvironmentVariableGenerationConfig;
+  environmentVariables?: Record<string, string>;
+  persistenceKey?: string;
+};
