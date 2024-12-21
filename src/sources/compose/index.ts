@@ -55,7 +55,7 @@ export class ComposeParser implements SourceParser {
     serviceName: string,
     service: DockerComposeService, 
     environmentOptions?: EnvironmentOptions
-  ): ContainerConfig {
+  ): ContainerConfig {  
     const ports = (service.ports || []).map(port => {
       if (typeof port === 'string') {
         return normalizePort(port);
@@ -71,17 +71,16 @@ export class ComposeParser implements SourceParser {
     // Get persisted environment variables if available
     const persistedEnv = environmentOptions?.getPersistedEnvVars?.(serviceName, image) || {};
     
-    // First, normalize the service's environment variables
-    const serviceEnv = normalizeEnvironment(service.environment);
+    const serviceEnv = normalizeEnvironment(
+      service.environment,
+      environmentOptions?.environmentVariables
+    );
     
-    // Then, merge with provided environment variables and persisted variables
     const mergedEnv = {
       ...serviceEnv,
-      ...persistedEnv,
-      ...(environmentOptions?.environmentVariables || {})
+      ...persistedEnv
     };
     
-    // Finally, process auto-generated variables
     const processedEnv = processEnvironmentVariablesGeneration(
       mergedEnv,
       image,

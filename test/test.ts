@@ -103,7 +103,10 @@ dockerRunFiles.forEach((filename) => {
   // Test listServices for each command
   console.log(`\nTesting listServices for Docker Run File ${filename}`);
   try {
-    const services = listServices(command, 'run', environmentConfigs);
+    const services = listServices(command, {
+      source: 'run',
+      environmentVariableGeneration: environmentConfigs
+    });
     console.log('✓ Services found:', services);
     writeFileSync(
       join(commandOutputDir, 'services.json'),
@@ -193,7 +196,10 @@ dockerComposeFiles.forEach(filename => {
   // Test listServices for each file
   console.log(`\nTesting listServices for ${filename}`);
   try {
-    const services = listServices(dockerComposeContent, 'compose', environmentConfigs);
+    const services = listServices(dockerComposeContent, {
+      source: 'compose',
+      environmentVariableGeneration: environmentConfigs
+    });    
     console.log('✓ Services found:', services);
     writeFileSync(
       join(fileOutputDir, 'services.json'),
