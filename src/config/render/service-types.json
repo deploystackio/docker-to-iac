@@ -1,0 +1,9 @@
+{
+  "serviceTypes": {
+    "docker.io/library/mariadb": {
+      "type": "pserv",
+      "description": "MariaDB database service - requires private service type due to TCP protocol",
+      "versions": "*"
+    }
+  }
+}

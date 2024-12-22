@@ -5,6 +5,7 @@ import { constructImageString } from '../utils/constructImageString';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
+import { getRenderServiceType } from '../utils/getRenderServiceType';
 
 const defaultParserConfig: DefaultParserConfig = {
   subscriptionName: 'starter',
@@ -38,7 +39,7 @@ class RenderParser extends BaseParser {
 
       const service: any = {
         name: serviceName,
-        type: 'web',
+        type: getRenderServiceType(serviceConfig.image),
         env: 'docker',
         runtime: 'image',
         image: { url: getImageUrl(constructImageString(serviceConfig.image)) },
