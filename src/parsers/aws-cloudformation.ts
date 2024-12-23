@@ -6,23 +6,6 @@ import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
 
-interface EFSVolumeConfiguration {
-  FilesystemId: string;
-  RootDirectory: string;
-  TransitEncryption: string;
-}
-
-interface Volume {
-  Name: string;
-  EFSVolumeConfiguration: EFSVolumeConfiguration;
-}
-
-interface MountPoint {
-  SourceVolume: string;
-  ContainerPath: string;
-  ReadOnly: boolean;
-}
-
 const defaultParserConfig: DefaultParserConfig = {
   cpu: 512,
   memory: '1GB',
@@ -55,41 +38,12 @@ class CloudFormationParser extends BaseParser {
       Default: 'DeployStackService'
     };
     
-    // Add EFS Resources
-    resources['EFSFileSystem'] = {
-      Type: 'AWS::EFS::FileSystem',
-      Properties: {
-        Encrypted: true,
-        PerformanceMode: 'generalPurpose',
-        ThroughputMode: 'bursting'
-      }
-    };
-
-    resources['EFSMountTargetA'] = {
-      Type: 'AWS::EFS::MountTarget',
-      Properties: {
-        FileSystemId: '!Ref EFSFileSystem',
-        SubnetId: '!Ref SubnetA',
-        SecurityGroups: ['!Ref EFSSecurityGroup']
-      }
-    };
-
-    resources['EFSMountTargetB'] = {
-      Type: 'AWS::EFS::MountTarget',
-      Properties: {
-        FileSystemId: '!Ref EFSFileSystem',
-        SubnetId: '!Ref SubnetB',
-        SecurityGroups: ['!Ref EFSSecurityGroup']
-      }
-    };
-    
     // Base AWS Resources
     resources['Cluster'] = {
       Type: 'AWS::ECS::Cluster',
       Properties: { ClusterName: '!Join [\'\', [!Ref ServiceName, Cluster]]' }
     };
 
-    // Update ExecutionRole with EFS permissions
     resources['ExecutionRole'] = {
       Type: 'AWS::IAM::Role',
       Properties: {
@@ -105,60 +59,9 @@ class CloudFormationParser extends BaseParser {
         },
         ManagedPolicyArns: [
           'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
-        ],
-        Policies: [{
-          PolicyName: 'EFSAccess',
-          PolicyDocument: {
-            Version: '2012-10-17',
-            Statement: [{
-              Effect: 'Allow',
-              Action: [
-                'elasticfilesystem:ClientMount',
-                'elasticfilesystem:ClientWrite',
-                'elasticfilesystem:DescribeMountTargets',
-                'elasticfilesystem:DescribeFileSystems'
-              ],
-              Resource: {
-                'Fn::GetAtt': ['EFSFileSystem', 'Arn']
-              }
-            }]
-          }
-        }]
+        ]
       }
     };
-
-    resources['TaskRole'] = {
-      Type: 'AWS::IAM::Role',
-      Properties: {
-        RoleName: '!Join [\'\', [!Ref ServiceName, TaskRole]]',
-        AssumeRolePolicyDocument: {
-          Statement: [
-            {
-              Effect: 'Allow',
-              Principal: { Service: 'ecs-tasks.amazonaws.com' },
-              Action: 'sts:AssumeRole'
-            }
-          ]
-        },
-        // Add EFS access policy for the task role as well
-        Policies: [{
-          PolicyName: 'EFSTaskAccess',
-          PolicyDocument: {
-            Version: '2012-10-17',
-            Statement: [{
-              Effect: 'Allow',
-              Action: [
-                'elasticfilesystem:ClientMount',
-                'elasticfilesystem:ClientWrite'
-              ],
-              Resource: {
-                'Fn::GetAtt': ['EFSFileSystem', 'Arn']
-              }
-            }]
-          }
-        }]
-      }
-    };    
 
     // Process each service in the docker compose
     for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
@@ -187,48 +90,10 @@ class CloudFormationParser extends BaseParser {
       const commandString = parseCommand(serviceConfig.command);
       const commandArray = commandString && commandString.trim() ? commandString.trim().split(' ') : undefined;
 
-      // Prepare volume configurations if volumes exist
-      const volumes: Volume[] = [];
-      const mountPoints: MountPoint[] = [];
-      
-      if (serviceConfig.volumes && serviceConfig.volumes.length > 0) {
-        serviceConfig.volumes.forEach((volume, index) => {
-          const volumeName = `efs-volume-${index}`;
-          volumes.push({
-            Name: volumeName,
-            EFSVolumeConfiguration: {
-              FilesystemId: '!Ref EFSFileSystem',
-              RootDirectory: '/',
-              TransitEncryption: 'ENABLED'
-            }
-          });
-          
-          mountPoints.push({
-            SourceVolume: volumeName,
-            ContainerPath: volume.container,
-            ReadOnly: volume.mode?.includes('ro') || false
-          });
-        });
-      }
-
-      resources['EFSSecurityGroup'] = {
-        Type: 'AWS::EC2::SecurityGroup',
-        Properties: {
-          GroupDescription: 'Security group for EFS',
-          VpcId: '!Ref VPC',
-          SecurityGroupIngress: [{
-            IpProtocol: 'tcp',
-            FromPort: 2049,
-            ToPort: 2049,
-            SourceSecurityGroupId: `!Ref ContainerSecurityGroup${serviceName}`
-          }]
-        }
-      };
-
       const containerDefinition: any = {
         Name: serviceName,
         Image: getImageUrl(constructImageString(serviceConfig.image)),
-        MountPoints: mountPoints,
+        ReadonlyRootFilesystem: false,
         PortMappings: Array.from(ports).map(port => ({
           ContainerPort: port
         })),
@@ -253,9 +118,7 @@ class CloudFormationParser extends BaseParser {
       resources[`TaskDefinition${serviceName}`] = {
         Type: 'AWS::ECS::TaskDefinition',
         DependsOn: [
-          `LogGroup${serviceName}`,
-          'EFSMountTargetA',
-          'EFSMountTargetB'
+          `LogGroup${serviceName}`
         ],
         Properties: {
           Family: `!Join ['', [!Ref ServiceName, TaskDefinition${serviceName}]]`,
@@ -264,8 +127,6 @@ class CloudFormationParser extends BaseParser {
           Cpu: defaultParserConfig.cpu,
           Memory: defaultParserConfig.memory,
           ExecutionRoleArn: '!Ref ExecutionRole',
-          TaskRoleArn: '!Ref TaskRole',
-          Volumes: volumes,
           ContainerDefinitions: [containerDefinition]
         }
       };
@@ -275,12 +136,12 @@ class CloudFormationParser extends BaseParser {
         Properties: {
           GroupDescription: `!Join ['', [${serviceName}, ContainerSecurityGroup]]`,
           VpcId: '!Ref VPC',
-          SecurityGroupIngress: Array.from(ports).map(port => ({
+          SecurityGroupIngress: {
             IpProtocol: 'tcp',
-            FromPort: port,
-            ToPort: port,
+            FromPort: 0,
+            ToPort: 65535,
             CidrIp: '0.0.0.0/0'
-          }))
+          }
         }
       };
 
@@ -308,7 +169,7 @@ class CloudFormationParser extends BaseParser {
 
     response = {
       AWSTemplateFormatVersion: '2010-09-09',
-      Description: 'DeployStack CFN template translated from Docker compose with EFS support',
+      Description: 'DeployStack CFN template translated from Docker compose',
       Parameters: parameters,
       Resources: resources
     };
