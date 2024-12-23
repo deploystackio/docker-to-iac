@@ -51,6 +51,7 @@ class DigitalOceanParser extends BaseParser {
       const dockerImageInfo = serviceConfig.image;
       const imageString = constructImageString(dockerImageInfo);
       const [repository, tag] = imageString.split(':');
+      const imageComponents = repository.split('/');
 
       const routePath = isFirstService ? '/' : `/${serviceName}`;
       isFirstService = false;
@@ -59,7 +60,8 @@ class DigitalOceanParser extends BaseParser {
         name: digitalOceanParserServiceName(serviceName),
         image: {
           registry_type: getRegistryType(dockerImageInfo),
-          repository: repository,
+          registry: imageComponents[1],
+          repository: imageComponents[2],
           tag: tag || 'latest'
         },
         http_port: ports.size > 0 ? Array.from(ports)[0] : undefined,
