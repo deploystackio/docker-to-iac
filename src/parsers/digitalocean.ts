@@ -5,6 +5,7 @@ import { parseCommand } from '../utils/parseCommand';
 import { digitalOceanParserServiceName } from '../utils/digitalOceanParserServiceName';
 import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
 import { constructImageString } from '../utils/constructImageString';
+import { getDigitalOceanDatabaseType } from '../utils/getDigitalOceanDatabaseType';
 
 const defaultParserConfig: DefaultParserConfig = {
   templateFormat: TemplateFormat.yaml,
@@ -13,9 +14,6 @@ const defaultParserConfig: DefaultParserConfig = {
   subscriptionName: 'basic-xxs'
 };
 
-/**
- * Gets the registry type for DigitalOcean format based on Docker image info
- */
 function getRegistryType(dockerImageInfo: DockerImageInfo): string {
   switch (dockerImageInfo.registry_type) {
     case 'GHCR':
@@ -29,9 +27,22 @@ function getRegistryType(dockerImageInfo: DockerImageInfo): string {
 class DigitalOceanParser extends BaseParser {
   parse(config: ApplicationConfig, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
     const services: Array<any> = [];
+    const databases: Array<any> = [];
     let isFirstService = true;
 
     for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
+      const databaseInfo = getDigitalOceanDatabaseType(serviceConfig.image);
+
+      if (databaseInfo) {
+        databases.push({
+          name: serviceName,
+          engine: databaseInfo.engine,
+          version: databaseInfo.version,
+          production: false
+        });
+        continue;
+      }
+
       const ports = new Set<number>();
       
       if (serviceConfig.ports) {
@@ -47,7 +58,6 @@ class DigitalOceanParser extends BaseParser {
         });
       }
 
-      // Use the image info directly since it's already a DockerImageInfo object
       const dockerImageInfo = serviceConfig.image;
       const imageString = constructImageString(dockerImageInfo);
       const [repository, tag] = imageString.split(':');
@@ -83,6 +93,7 @@ class DigitalOceanParser extends BaseParser {
       spec: {
         name: 'deploystack',
         region: defaultParserConfig.region,
+        ...(databases.length > 0 && { databases }),
         services: services.map(service => ({
           name: service.name,
           image: service.image,
