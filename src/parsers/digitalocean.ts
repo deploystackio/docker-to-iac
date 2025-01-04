@@ -4,7 +4,7 @@ import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 import { digitalOceanParserServiceName } from '../utils/digitalOceanParserServiceName';
 import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
-import { constructImageString } from '../utils/constructImageString';
+import { normalizeDigitalOceanImageInfo } from '../utils/normalizeDigitalOceanImageInfo';
 import { getDigitalOceanDatabaseType } from '../utils/getDigitalOceanDatabaseType';
 
 const defaultParserConfig: DefaultParserConfig = {
@@ -27,54 +27,21 @@ function getRegistryType(dockerImageInfo: DockerImageInfo): string {
 class DigitalOceanParser extends BaseParser {
   parse(config: ApplicationConfig, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
     const services: Array<any> = [];
-    const databases: Array<any> = [];
     let isFirstService = true;
 
     for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
-      const databaseInfo = getDigitalOceanDatabaseType(serviceConfig.image);
-
-      if (databaseInfo) {
-        databases.push({
-          name: serviceName,
-          engine: databaseInfo.engine,
-          version: databaseInfo.version,
-          production: false
-        });
-        continue;
-      }
-
-      const ports = new Set<number>();
-      
-      if (serviceConfig.ports) {
-        serviceConfig.ports.forEach(port => {
-          if (typeof port === 'object' && port !== null) {
-            ports.add(port.container);
-          } else {
-            const parsedPort = parsePort(port);
-            if (parsedPort) {
-              ports.add(parsedPort);
-            }
-          }
-        });
-      }
-
       const dockerImageInfo = serviceConfig.image;
-      const imageString = constructImageString(dockerImageInfo);
-      const [repository, tag] = imageString.split(':');
-      const imageComponents = repository.split('/');
+      const databaseConfig = getDigitalOceanDatabaseType(dockerImageInfo);
+      const normalizedImage = normalizeDigitalOceanImageInfo(dockerImageInfo);
 
-      const routePath = isFirstService ? '/' : `/${serviceName}`;
-      isFirstService = false;
-
-      const service = {
+      const baseService = {
         name: digitalOceanParserServiceName(serviceName),
         image: {
           registry_type: getRegistryType(dockerImageInfo),
-          registry: imageComponents[1],
-          repository: imageComponents[2],
-          tag: tag || 'latest'
+          registry: normalizedImage.registry,
+          repository: normalizedImage.repository,
+          tag: dockerImageInfo.tag || 'latest'
         },
-        http_port: ports.size > 0 ? Array.from(ports)[0] : undefined,
         instance_count: 1,
         instance_size_slug: defaultParserConfig.subscriptionName,
         run_command: parseCommand(serviceConfig.command),
@@ -82,28 +49,49 @@ class DigitalOceanParser extends BaseParser {
           .map(([key, value]) => ({
             key,
             value: value.toString()
-          })),
-        routes: [{ path: routePath }]
+          }))
       };
 
-      services.push(service);
+      if (databaseConfig) {
+        // Database/TCP service configuration
+        services.push({
+          ...baseService,
+          health_check: {
+            port: databaseConfig.portNumber
+          },
+          internal_ports: [databaseConfig.portNumber]
+        });
+      } else {
+        const ports = new Set<number>();
+        if (serviceConfig.ports) {
+          serviceConfig.ports.forEach(port => {
+            if (typeof port === 'object' && port !== null) {
+              ports.add(port.container);
+            } else {
+              const parsedPort = parsePort(port);
+              if (parsedPort) {
+                ports.add(parsedPort);
+              }
+            }
+          });
+        }
+
+        const routePath = isFirstService ? '/' : `/${serviceName}`;
+        isFirstService = false;
+
+        services.push({
+          ...baseService,
+          http_port: ports.size > 0 ? Array.from(ports)[0] : undefined,
+          routes: [{ path: routePath }]
+        });
+      }
     }
 
     const digitalOceanConfig = {
       spec: {
         name: 'deploystack',
         region: defaultParserConfig.region,
-        ...(databases.length > 0 && { databases }),
-        services: services.map(service => ({
-          name: service.name,
-          image: service.image,
-          http_port: service.http_port,
-          instance_count: service.instance_count,
-          instance_size_slug: service.instance_size_slug,
-          run_command: service.run_command,
-          envs: service.envs,
-          routes: service.routes
-        }))
+        services
       }
     };
 
