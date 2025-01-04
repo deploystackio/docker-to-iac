@@ -1,7 +1,7 @@
 interface DatabaseConfig {
   engine: string;
-  versions: string[];
   description: string;
+  portNumber: number;
 }
 
 interface DigitalOceanDatabaseConfig {
@@ -14,30 +14,39 @@ export const digitalOceanDatabaseConfig: DigitalOceanDatabaseConfig = {
   databases: {
     'docker.io/library/mysql': {
       engine: 'MYSQL',
-      versions: ['8'],
-      description: 'MySQL database service - requires managed database service due to TCP protocol'
+      description: 'MySQL database service - requires managed database service due to TCP protocol',
+      portNumber: 3306
     },
     'docker.io/library/mariadb': {
       engine: 'MYSQL',
-      versions: ['8'],
-      description: 'MariaDB database service - maps to MySQL managed database due to compatibility'
+      description: 'MariaDB database service - maps to MySQL managed database due to compatibility',
+      portNumber: 3306
     },
     'docker.io/library/postgres': {
       engine: 'PG',
-      versions: ['13', '14', '15'],
-      description: 'PostgreSQL database service - requires managed database service due to TCP protocol'
+      description: 'PostgreSQL database service - requires managed database service due to TCP protocol',
+      portNumber: 5432
     },
     'docker.io/library/redis': {
       engine: 'REDIS',
-      versions: ['6', '7'],
-      description: 'Redis database service - requires managed database service due to TCP protocol'
+      description: 'Redis database service - requires managed database service due to TCP protocol',
+      portNumber: 6379
     },
     'docker.io/library/mongodb': {
       engine: 'MONGODB',
-      versions: ['6.0', '7.0'],
-      description: 'MongoDB database service - requires managed database service due to TCP protocol'
+      description: 'MongoDB database service - requires managed database service due to TCP protocol',
+      portNumber: 27017
     }
   }
 };
+
+export function isDatabaseService(imageString: string): boolean {
+  return imageString.split(':')[0] in digitalOceanDatabaseConfig.databases;
+}
+
+export function getDatabaseConfig(imageString: string): DatabaseConfig | null {
+  const baseImage = imageString.split(':')[0];
+  return digitalOceanDatabaseConfig.databases[baseImage] || null;
+}
 
 export type { DatabaseConfig, DigitalOceanDatabaseConfig };
