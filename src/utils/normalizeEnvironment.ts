@@ -7,8 +7,17 @@ type EnvironmentInput = string[] | { [key: string]: string } | string | undefine
 function substituteEnvVariables(value: string, envVariables?: Record<string, string>): string {
   if (!envVariables) return value;
   
-  return value.replace(/\${([^}]+)}/g, (match, varName) => {
-    return envVariables[varName] || match;
+  return value.replace(/\${([^}]+)}/g, (match, p1) => {
+    // Check if this is a variable with default value
+    const defaultMatch = p1.match(/([^:-]+):-(.+)/);
+    
+    if (defaultMatch) {
+      const [, varName, defaultValue] = defaultMatch;
+      return envVariables[varName] || defaultValue;
+    }
+    
+    // Regular variable without default
+    return envVariables[p1] || match;
   });
 }
 
