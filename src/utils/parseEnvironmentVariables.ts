@@ -1,8 +1,13 @@
-export function parseEnvironmentVariables(environment: Record<string, any> | string[] | undefined): Record<string, string | number> {
-  const environmentVariables: Record<string, string | number> = {};
+import { resolveEnvironmentValue } from './resolveEnvironmentValue';
+
+export function parseEnvironmentVariables(
+  environment: Record<string, any> | string[] | undefined,
+  environmentVariables?: Record<string, string>
+): Record<string, string | number> {
+  const environmentResult: Record<string, string | number> = {};
   
   if (!environment) {
-    return environmentVariables;
+    return environmentResult;
   }
 
   if (Array.isArray(environment)) {
@@ -10,20 +15,24 @@ export function parseEnvironmentVariables(environment: Record<string, any> | str
     environment.forEach(env => {
       if (typeof env === 'string' && env.includes('=')) {
         const [key, value] = env.split('=');
-        environmentVariables[key.trim()] = value.trim();
+        environmentResult[key.trim()] = resolveEnvironmentValue(value.trim(), environmentVariables);
       }
     });
   } else {
     // Handle object format: { KEY: "value", OTHER_KEY: "othervalue" }
     Object.entries(environment).forEach(([key, value]) => {
-      if (typeof value === 'string' && value.includes('=')) {
-        const [splitKey, splitValue] = value.split('=');
-        environmentVariables[splitKey.trim()] = splitValue.trim();
+      if (typeof value === 'string') {
+        if (value.includes('=')) {
+          const [splitKey, splitValue] = value.split('=');
+          environmentResult[splitKey.trim()] = resolveEnvironmentValue(splitValue.trim(), environmentVariables);
+        } else {
+          environmentResult[key.trim()] = resolveEnvironmentValue(value, environmentVariables);
+        }
       } else {
-        environmentVariables[key.trim()] = value?.toString() || '';
+        environmentResult[key.trim()] = value?.toString() || '';
       }
     });
   }
 
-  return environmentVariables;
+  return environmentResult;
 }

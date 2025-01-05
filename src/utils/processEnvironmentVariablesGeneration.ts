@@ -124,7 +124,22 @@ export function processEnvironmentVariablesGeneration(
   }
 
   const result = { ...environment };
-  const imageConfig = config[image.repository];
+  
+  // Try different repository name formats
+  const possibleRepoNames = [
+    image.repository,
+    `library/${image.repository}`,
+    `docker.io/library/${image.repository}`,
+    `docker.io/${image.repository}`
+  ];
+  
+  let imageConfig;
+  for (const repoName of possibleRepoNames) {
+    if (config[repoName]) {
+      imageConfig = config[repoName];
+      break;
+    }
+  }
 
   if (!imageConfig) {
     return result;
@@ -139,14 +154,9 @@ export function processEnvironmentVariablesGeneration(
 
   const versionConfig = imageConfig.versions[matchingVersion];
 
-  // Process each environment variable
-  for (const [key, value] of Object.entries(result)) {
-    if (versionConfig.environment[key]) {
-      // If the value starts with ${ and ends with }, generate a new value
-      if (typeof value === 'string' && value.startsWith('${') && value.endsWith('}')) {
-        result[key] = generateValue(versionConfig.environment[key]);
-      }
-    }
+  // Process each environment variable that has a generation rule
+  for (const [envKey, genConfig] of Object.entries(versionConfig.environment)) {
+    result[envKey] = generateValue(genConfig);
   }
 
   return result;
