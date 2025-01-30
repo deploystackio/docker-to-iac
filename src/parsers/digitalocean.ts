@@ -102,7 +102,7 @@ class DigitalOceanParser extends BaseParser {
     return {
       providerWebsite: 'https://www.digitalocean.com/',
       providerName: 'DigitalOcean',
-      provieerNameAbbreviation: 'DO',
+      providerNameAbbreviation: 'DO',
       languageOfficialDocs: 'https://docs.digitalocean.com/products/app-platform/',
       languageAbbreviation: 'DOP',
       languageName: 'DigitalOcean App Spec',
