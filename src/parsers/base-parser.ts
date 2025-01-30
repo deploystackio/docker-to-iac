@@ -6,7 +6,7 @@ import { ApplicationConfig } from '../types/container-config';
 export type ParserInfo = {
   providerWebsite: string;
   providerName: string;
-  provieerNameAbbreviation: string;
+  providerNameAbbreviation: string;
   languageOfficialDocs: string;
   languageAbbreviation: string;
   languageName: string;

@@ -186,7 +186,7 @@ class CloudFormationParser extends BaseParser {
     return {
       providerWebsite: 'https://aws.amazon.com/cloudformation/',
       providerName: 'Amazon Web Services',
-      provieerNameAbbreviation: 'AWS',      
+      providerNameAbbreviation: 'AWS',      
       languageOfficialDocs: 'https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html',
       languageAbbreviation: 'CFN',
       languageName: 'AWS CloudFormation',

@@ -99,7 +99,7 @@ class RenderParser extends BaseParser {
     return {
       providerWebsite: 'https://render.com/docs',
       providerName: 'Render',
-      provieerNameAbbreviation: 'RND',
+      providerNameAbbreviation: 'RND',
       languageOfficialDocs: 'https://docs.render.com/infrastructure-as-code',
       languageAbbreviation: 'RND',
       languageName: 'Render Blue Print',
