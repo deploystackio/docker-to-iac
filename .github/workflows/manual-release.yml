@@ -12,11 +12,6 @@ on:
           - patch
           - minor
           - major
-      reason:
-        description: 'Reason for release'
-        required: true
-        type: string
-        default: 'manual release'
 
 permissions:
   contents: write
@@ -44,16 +39,6 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Setup Git
-        run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
-          
-      - name: Create Release Commit
-        run: |
-          git commit --allow-empty -m "${{ github.event.inputs.releaseType }}(release): ${{ github.event.inputs.reason }}"
-          git push
 
       - name: Release
         env:
