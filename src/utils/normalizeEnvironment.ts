@@ -4,6 +4,15 @@ export interface EnvironmentConfig {
 
 type EnvironmentInput = string[] | { [key: string]: string } | string | undefined;
 
+function stripQuotes(value: string): string {
+  const trimmed = value.trim();
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || 
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
 function substituteEnvVariables(value: string, envVariables?: Record<string, string>): string {
   if (!envVariables) return value;
   
@@ -13,11 +22,11 @@ function substituteEnvVariables(value: string, envVariables?: Record<string, str
     
     if (defaultMatch) {
       const [, varName, defaultValue] = defaultMatch;
-      return envVariables[varName] || defaultValue;
+      return stripQuotes(envVariables[varName] || defaultValue);
     }
     
     // Regular variable without default
-    return envVariables[p1] || match;
+    return stripQuotes(envVariables[p1] || match);
   });
 }
 
@@ -33,8 +42,8 @@ export function normalizeEnvironment(
   if (typeof env === 'string') {
     const [key, ...valueParts] = env.split('=');
     const rawValue = valueParts.join('=');
-    const value = substituteEnvVariables(rawValue, envVariables);
-    return { [key]: value || '' };
+    const value = stripQuotes(substituteEnvVariables(rawValue, envVariables));
+    return { [key.trim()]: value || '' };
   }
 
   // Handle array format
@@ -42,7 +51,7 @@ export function normalizeEnvironment(
     return env.reduce((acc: EnvironmentConfig, curr: string) => {
       const [key, ...valueParts] = curr.split('=');
       const rawValue = valueParts.join('=');
-      acc[key] = substituteEnvVariables(rawValue, envVariables) || '';
+      acc[key.trim()] = stripQuotes(substituteEnvVariables(rawValue, envVariables)) || '';
       return acc;
     }, {});
   }
@@ -51,7 +60,7 @@ export function normalizeEnvironment(
   if (typeof env === 'object') {
     return Object.entries(env).reduce((acc: EnvironmentConfig, [key, value]) => {
       const stringValue = value?.toString() || '';
-      acc[key] = substituteEnvVariables(stringValue, envVariables);
+      acc[key.trim()] = stripQuotes(substituteEnvVariables(stringValue, envVariables));
       return acc;
     }, {});
   }
