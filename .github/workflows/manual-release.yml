@@ -61,7 +61,6 @@ jobs:
           # Run semantic-release on the release branch
           npx semantic-release --branches $BRANCH_NAME
   
-  
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
