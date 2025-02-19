@@ -56,10 +56,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           RELEASE_TYPE: ${{ inputs.releaseType }}
         run: |
-          # Configure git to push to the release branch
-          git branch --set-upstream-to=origin/$BRANCH_NAME $BRANCH_NAME
+          # Push the new branch to remote first
+          git push -u origin $BRANCH_NAME
           npx semantic-release
-
+  
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
