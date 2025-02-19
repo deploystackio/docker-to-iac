@@ -17,7 +17,7 @@ const defaultParserConfig: DefaultParserConfig = {
 function getRegistryType(dockerImageInfo: DockerImageInfo): string {
   switch (dockerImageInfo.registry_type) {
     case 'GHCR':
-      return 'GITHUB';
+      return 'GHCR';
     case 'DOCKER_HUB':
     default:
       return 'DOCKER_HUB';
