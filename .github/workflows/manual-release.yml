@@ -34,11 +34,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
+      - name: Create Release Branch
+        run: |
+          git checkout -b release/manual-release-${{ github.run_id }}
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
 
       - name: Get Latest Release
         id: latest_release
@@ -54,12 +54,17 @@ jobs:
           echo "$changelog" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
-        run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
-          npm run semantic-release
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: prepare release ${{ github.event.inputs.releaseType }}"
+          title: "chore: prepare release ${{ github.event.inputs.releaseType }}"
+          body: |
+            This PR was automatically created by the manual release workflow.
+            
+            Changes since ${{ steps.latest_release.outputs.latest_tag }}:
+            ${{ steps.changelog.outputs.changelog }}
+          branch: release/manual-release-${{ github.run_id }}
+          base: main
+          labels: release
