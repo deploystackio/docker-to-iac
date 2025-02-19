@@ -44,15 +44,13 @@ jobs:
         id: latest_release
         run: |
           latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "LATEST_TAG=${latest_tag}" >> $GITHUB_ENV
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
           
       - name: Generate Changelog
         id: changelog
         run: |
-          echo 'CHANGELOG<<ENDOFCHANGELOG' >> $GITHUB_ENV
-          echo "Changes since ${LATEST_TAG}:" >> $GITHUB_ENV
-          git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" >> $GITHUB_ENV
-          echo 'ENDOFCHANGELOG' >> $GITHUB_ENV
+          changelog=$(git log ${{ steps.latest_release.outputs.latest_tag }}..HEAD --pretty=format:"- %s (%h)")
+          echo "changelog=$changelog" >> $GITHUB_OUTPUT
 
       - name: Release
         env:
