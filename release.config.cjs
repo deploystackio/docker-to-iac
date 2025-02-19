@@ -1,20 +1,11 @@
 module.exports = {
   branches: [
-    "main",
+    { name: "main" },
     { name: "next", prerelease: true },
-    { name: "release/*", prerelease: false }
+    { name: "release/*", channel: "release/${name.replace(/^release\\//g, '')}" }
   ],
   plugins: [
-    ["@semantic-release/commit-analyzer", {
-      "releaseRules": [
-        { "type": "feat", "release": "minor" },
-        { "type": "fix", "release": "patch" },
-        { "type": "docs", "release": "patch" },
-        { "type": "chore", "release": "patch" },
-        { "type": "refactor", "release": "patch" },
-        { "type": "test", "release": "patch" }
-      ]
-    }],
+    "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
     ["@semantic-release/npm", {
       "pkgRoot": "."
@@ -28,8 +19,5 @@ module.exports = {
       "assets": ["package.json", "package-lock.json"],
       "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
     }]
-  ],
-  tagFormat: "v${version}",
-  ci: true,
-  debug: true
+  ]
 }
