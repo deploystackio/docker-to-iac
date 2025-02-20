@@ -3,7 +3,6 @@ import { ApplicationConfig } from '../types/container-config';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 import { digitalOceanParserServiceName } from '../utils/digitalOceanParserServiceName';
-import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
 import { normalizeDigitalOceanImageInfo } from '../utils/normalizeDigitalOceanImageInfo';
 import { getDigitalOceanDatabaseType } from '../utils/getDigitalOceanDatabaseType';
 
@@ -45,7 +44,7 @@ class DigitalOceanParser extends BaseParser {
         instance_count: 1,
         instance_size_slug: defaultParserConfig.subscriptionName,
         run_command: parseCommand(serviceConfig.command),
-        envs: Object.entries(parseEnvironmentVariables(serviceConfig.environment))
+        envs: Object.entries(serviceConfig.environment)
           .map(([key, value]) => ({
             key,
             value: value.toString()

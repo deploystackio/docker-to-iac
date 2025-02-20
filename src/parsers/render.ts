@@ -4,7 +4,6 @@ import { getImageUrl } from '../utils/getImageUrl';
 import { constructImageString } from '../utils/constructImageString';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
-import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
 import { getRenderServiceType } from '../utils/getRenderServiceType';
 
 const defaultParserConfig: DefaultParserConfig = {
@@ -31,10 +30,10 @@ class RenderParser extends BaseParser {
         });
       }
 
-      const environmentVariables = parseEnvironmentVariables(serviceConfig.environment);
+      const environmentVariables = { ...serviceConfig.environment };
 
       if (ports.size > 0) {
-        environmentVariables['PORT'] = Array.from(ports)[0];
+        environmentVariables['PORT'] = Array.from(ports)[0].toString();
       }
 
       const service: any = {

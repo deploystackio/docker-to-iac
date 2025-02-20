@@ -4,7 +4,6 @@ import { getImageUrl } from '../utils/getImageUrl';
 import { constructImageString } from '../utils/constructImageString';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
-import { parseEnvironmentVariables } from '../utils/parseEnvironmentVariables';
 
 const defaultParserConfig: DefaultParserConfig = {
   cpu: 512,
@@ -86,7 +85,7 @@ class CloudFormationParser extends BaseParser {
         });
       }
 
-      const environmentVariables = parseEnvironmentVariables(serviceConfig.environment);
+      const environmentVariables = serviceConfig.environment;
       const commandString = parseCommand(serviceConfig.command);
       const commandArray = commandString && commandString.trim() ? commandString.trim().split(' ') : undefined;
 
