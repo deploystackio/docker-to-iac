@@ -1,14 +1,20 @@
-import { BaseParser, ParserInfo, TemplateFormat, formatResponse, DefaultParserConfig, DockerImageInfo } from './base-parser';
-import { ApplicationConfig } from '../types/container-config';
+import { BaseParser, ParserInfo, TemplateFormat, ParserConfig, DockerImageInfo } from './base-parser';
+import { ApplicationConfig, FileOutput } from '../types/container-config';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 import { digitalOceanParserServiceName } from '../utils/digitalOceanParserServiceName';
 import { normalizeDigitalOceanImageInfo } from '../utils/normalizeDigitalOceanImageInfo';
 import { getDigitalOceanDatabaseType } from '../utils/getDigitalOceanDatabaseType';
 
-const defaultParserConfig: DefaultParserConfig = {
-  templateFormat: TemplateFormat.yaml,
-  fileName: '.do/deploy.template.yaml',
+const defaultParserConfig: ParserConfig = {
+  files: [
+    {
+      path: '.do/deploy.template.yaml',
+      templateFormat: TemplateFormat.yaml,
+      isMain: true,
+      description: 'DigitalOcean App Platform deployment template'
+    }
+  ],
   region: 'nyc',
   subscriptionName: 'basic-xxs'
 };
@@ -24,7 +30,11 @@ function getRegistryType(dockerImageInfo: DockerImageInfo): string {
 }
 
 class DigitalOceanParser extends BaseParser {
-  parse(config: ApplicationConfig, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
+  parse(config: ApplicationConfig, templateFormat: TemplateFormat = TemplateFormat.yaml): any {
+    return super.parse(config, templateFormat);
+  }
+
+  parseFiles(config: ApplicationConfig): { [path: string]: FileOutput } {
     const services: Array<any> = [];
     let isFirstService = true;
 
@@ -94,7 +104,13 @@ class DigitalOceanParser extends BaseParser {
       }
     };
 
-    return formatResponse(JSON.stringify(digitalOceanConfig, null, 2), templateFormat);
+    return {
+      '.do/deploy.template.yaml': {
+        content: this.formatFileContent(digitalOceanConfig, TemplateFormat.yaml),
+        format: TemplateFormat.yaml,
+        isMain: true
+      }
+    };
   }
 
   getInfo(): ParserInfo {

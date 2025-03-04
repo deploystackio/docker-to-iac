@@ -1,7 +1,7 @@
 import { translate, getParserInfo, listAllParsers, listServices } from '../src/index';
 import { TemplateFormat } from '../src/parsers/base-parser';
 import { writeFileSync, readFileSync, readdirSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 
 // Track test failures
 let hasTestFailed = false;
@@ -135,26 +135,21 @@ dockerRunFiles.forEach((filename) => {
           templateFormat: format as TemplateFormat,
           environmentVariableGeneration: environmentConfigs
         });
-
-        const extension = format === TemplateFormat.yaml ? 'yml' : format;
-        const outputPath = join(parserOutputDir, `output.${extension}`);
-        
-        if (format === TemplateFormat.json) {
-          let jsonContent;
-          try {
-            jsonContent = JSON.parse(result);
-          } catch {
-            jsonContent = result;
+      
+        // Save all generated files with proper directory structure
+        Object.entries(result.files).forEach(([path, fileData]) => {
+          // Create the full directory path
+          const fullPath = join(parserOutputDir, path);
+          const dir = dirname(fullPath);
+          
+          // Create directories if they don't exist
+          if (!existsSync(dir)) {
+            mkdirSync(dir, { recursive: true });
           }
           
-          const jsonString = typeof jsonContent === 'string' 
-            ? jsonContent 
-            : JSON.stringify(jsonContent, null, 2);
-            
-          writeFileSync(outputPath, jsonString);
-        } else {
-          writeFileSync(outputPath, result);
-        }
+          // Write the file with proper format
+          writeFileSync(fullPath, fileData.content);
+        });
         
         console.log(`✓ Successfully generated ${format} output for ${parser.providerName}`);
       } catch (error) {
@@ -228,26 +223,21 @@ dockerComposeFiles.forEach(filename => {
           templateFormat: format as TemplateFormat,
           environmentVariableGeneration: environmentConfigs
         });
-
-        const extension = format === TemplateFormat.yaml ? 'yml' : format;
-        const outputPath = join(parserOutputDir, `output.${extension}`);
-        
-        if (format === TemplateFormat.json) {
-          let jsonContent;
-          try {
-            jsonContent = JSON.parse(result);
-          } catch {
-            jsonContent = result;
+      
+        // Save all generated files with proper directory structure
+        Object.entries(result.files).forEach(([path, fileData]) => {
+          // Create the full directory path
+          const fullPath = join(parserOutputDir, path);
+          const dir = dirname(fullPath);
+          
+          // Create directories if they don't exist
+          if (!existsSync(dir)) {
+            mkdirSync(dir, { recursive: true });
           }
           
-          const jsonString = typeof jsonContent === 'string' 
-            ? jsonContent 
-            : JSON.stringify(jsonContent, null, 2);
-            
-          writeFileSync(outputPath, jsonString);
-        } else {
-          writeFileSync(outputPath, result);
-        }
+          // Write the file with proper format
+          writeFileSync(fullPath, fileData.content);
+        });
         
         console.log(`✓ Successfully generated ${format} output for ${parser.providerName}`);
       } catch (error) {

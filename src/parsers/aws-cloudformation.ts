@@ -1,15 +1,21 @@
-import { BaseParser, ParserInfo, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
-import { ApplicationConfig } from '../types/container-config';
+import { BaseParser, ParserInfo, TemplateFormat, ParserConfig } from './base-parser';
+import { ApplicationConfig, FileOutput } from '../types/container-config';
 import { getImageUrl } from '../utils/getImageUrl';
 import { constructImageString } from '../utils/constructImageString';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 
-const defaultParserConfig: DefaultParserConfig = {
+const defaultParserConfig: ParserConfig = {
+  files: [
+    {
+      path: 'aws-cloudformation.cf.yml',
+      templateFormat: TemplateFormat.yaml,
+      isMain: true,
+      description: 'AWS CloudFormation template'
+    }
+  ],
   cpu: 512,
-  memory: '1GB',
-  templateFormat: TemplateFormat.yaml,
-  fileName: 'aws-cloudformation.cf.yml'
+  memory: '1GB'
 };
 
 class CloudFormationParser extends BaseParser {
@@ -23,7 +29,11 @@ class CloudFormationParser extends BaseParser {
     return output;
   }
 
-  parse(config: ApplicationConfig, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
+  parse(config: ApplicationConfig, templateFormat: TemplateFormat = TemplateFormat.yaml): any {
+    return super.parse(config, templateFormat);
+  }
+
+  parseFiles(config: ApplicationConfig): { [path: string]: FileOutput } {
     let response: any = {};
     const parameters: any = {};
     const resources: any = {};
@@ -168,17 +178,22 @@ class CloudFormationParser extends BaseParser {
 
     response = {
       AWSTemplateFormatVersion: '2010-09-09',
-      Description: 'DeployStack CFN template translated from Docker compose',
+      Description: 'Generated from container configuration by docker-to-iac',
       Parameters: parameters,
       Resources: resources
     };
 
-    switch (templateFormat) {
-      case TemplateFormat.yaml:
-        return this.replaceSpecialDirectives(formatResponse(JSON.stringify(response, null, 2), templateFormat));
-      default:
-        return formatResponse(JSON.stringify(response, null, 2), templateFormat);
-    }
+    // Process the output based on format
+    const content = JSON.stringify(response, null, 2);
+    const formattedContent = this.replaceSpecialDirectives(content);
+
+    return {
+      'aws-cloudformation.cf.yml': {
+        content: this.formatFileContent(formattedContent, TemplateFormat.yaml),
+        format: TemplateFormat.yaml,
+        isMain: true
+      }
+    };
   }
 
   getInfo(): ParserInfo {
