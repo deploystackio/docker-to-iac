@@ -1,7 +1,27 @@
-// src/parsers/base-parser.ts
-
 import * as YAML from 'yaml';
 import { ApplicationConfig } from '../types/container-config';
+
+export type FileOutput = {
+  content: any;
+  format: TemplateFormat;
+  isMain?: boolean;
+}
+
+export type ParserFileConfig = {
+  path: string;
+  templateFormat: TemplateFormat;
+  isMain?: boolean;
+  description?: string;
+}
+
+export type ParserConfig = {
+  files: ParserFileConfig[];
+  cpu?: any;
+  memory?: any;
+  diskSizeGB?: number;
+  region?: string;
+  subscriptionName?: string;
+}
 
 export type ParserInfo = {
   providerWebsite: string;
@@ -10,17 +30,7 @@ export type ParserInfo = {
   languageOfficialDocs: string;
   languageAbbreviation: string;
   languageName: string;
-  defaultParserConfig: DefaultParserConfig
-};
-
-export type DefaultParserConfig = {
-  templateFormat: TemplateFormat;
-  cpu?: any;
-  memory?: any;
-  diskSizeGB?: number;
-  region?: string;
-  fileName: string;
-  subscriptionName?: string;
+  defaultParserConfig: ParserConfig;
 };
 
 export enum RegistryType {
@@ -54,6 +64,33 @@ export function formatResponse(response: string, templateFormat: TemplateFormat)
 }
 
 export abstract class BaseParser {
-  abstract parse(config: ApplicationConfig, templateFormat?: TemplateFormat): any;
+  parse(config: ApplicationConfig, templateFormat?: TemplateFormat): any {
+    const files = this.parseFiles(config);
+    const mainFile = Object.values(files).find(file => file.isMain);
+    
+    if (!mainFile) {
+      throw new Error('No main file defined in parser output');
+    }
+    
+    return typeof mainFile.content === 'string'
+      ? mainFile.content
+      : formatResponse(JSON.stringify(mainFile.content, null, 2), templateFormat || mainFile.format);
+  }
+  
+  abstract parseFiles(config: ApplicationConfig): { [path: string]: FileOutput };
+  
   abstract getInfo(): ParserInfo;
+  
+  protected formatFileContent(content: any, format: TemplateFormat): string {
+    if (typeof content === 'string') {
+      try {
+        const parsed = JSON.parse(content);
+        return formatResponse(JSON.stringify(parsed, null, 2), format);
+      } catch {
+        return content;
+      }
+    } else {
+      return formatResponse(JSON.stringify(content, null, 2), format);
+    }
+  }
 }

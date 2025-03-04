@@ -1,21 +1,33 @@
-import { BaseParser, ParserInfo, TemplateFormat, formatResponse, DefaultParserConfig } from './base-parser';
-import { ApplicationConfig } from '../types/container-config';
+import { BaseParser, ParserInfo, TemplateFormat, ParserConfig } from './base-parser';
+import { ApplicationConfig, FileOutput } from '../types/container-config';
 import { getImageUrl } from '../utils/getImageUrl';
 import { constructImageString } from '../utils/constructImageString';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 import { getRenderServiceType } from '../utils/getRenderServiceType';
 
-const defaultParserConfig: DefaultParserConfig = {
+const defaultParserConfig: ParserConfig = {
+  files: [
+    {
+      path: 'render.yaml',
+      templateFormat: TemplateFormat.yaml,
+      isMain: true,
+      description: 'Render Blueprint configuration'
+    }
+  ],
   subscriptionName: 'starter',
   region: 'oregon',
-  fileName: 'render.yaml',
-  diskSizeGB: 10,
-  templateFormat: TemplateFormat.yaml
+  diskSizeGB: 10
 };
 
 class RenderParser extends BaseParser {
-  parse(config: ApplicationConfig, templateFormat: TemplateFormat = defaultParserConfig.templateFormat): any {
+  // Legacy method implementation (calls parseFiles under the hood)
+  parse(config: ApplicationConfig, templateFormat: TemplateFormat = TemplateFormat.yaml): any {
+    return super.parse(config, templateFormat);
+  }
+  
+  // New multi-file implementation
+  parseFiles(config: ApplicationConfig): { [path: string]: FileOutput } {
     const services: Array<any> = [];
 
     for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
@@ -75,7 +87,14 @@ class RenderParser extends BaseParser {
       services
     };
     
-    return formatResponse(JSON.stringify(renderConfig, null, 2), templateFormat);
+    // Return object with a single file - convert to string
+    return {
+      'render.yaml': {
+        content: this.formatFileContent(renderConfig, TemplateFormat.yaml),
+        format: TemplateFormat.yaml,
+        isMain: true
+      }
+    };
   }
 
   private generateDiskName(serviceName: string, mountPath: string): string {

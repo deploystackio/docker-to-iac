@@ -1,12 +1,10 @@
-import { DockerImageInfo } from '../parsers/base-parser';
+import { DockerImageInfo, TemplateFormat } from '../parsers/base-parser';
 import { EnvironmentVariableGenerationConfig } from './environment-config';
-import { TemplateFormat } from '../parsers/base-parser';
 
 export interface PortMapping {
   host: number;
   container: number;
   protocol?: string;
-  // Docker Compose compatibility
   published?: number;
   target?: number;
 }
@@ -30,6 +28,16 @@ export interface ApplicationConfig {
   services: {
     [key: string]: ContainerConfig;
   };
+}
+
+export interface FileOutput {
+  content: string;
+  format: TemplateFormat;
+  isMain?: boolean;
+}
+
+export interface TranslationResult {
+  files: { [path: string]: FileOutput };
 }
 
 export type TranslateOptions = {

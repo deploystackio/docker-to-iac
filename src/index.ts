@@ -1,5 +1,5 @@
-import { BaseParser, ParserInfo } from './parsers/base-parser';
-import { ApplicationConfig } from './types/container-config';
+import { BaseParser, ParserInfo, formatResponse } from './parsers/base-parser';
+import { ApplicationConfig, TranslationResult } from './types/container-config';
 import type { ListServicesOptions, TranslateOptions } from './types/container-config';
 import { EnvironmentVariableGenerationConfig } from './types/environment-config';
 import cloudFormationParserInstance from './parsers/aws-cloudformation';
@@ -75,7 +75,7 @@ function getProcessedConfig(
   });
 }
 
-function translate(content: string, options: TranslateOptions): any {
+function translate(content: string, options: TranslateOptions): TranslationResult {
   try {
     const parser = parsers.find(
       p => p.getInfo().languageAbbreviation.toLowerCase() === options.target.toLowerCase()
@@ -91,8 +91,22 @@ function translate(content: string, options: TranslateOptions): any {
       persistenceKey: options.persistenceKey
     });
 
-    const translatedConfig = parser.parse(containerConfig, options.templateFormat);
-    return translatedConfig;
+    // Get files from parser
+    const filesOutput = parser.parseFiles(containerConfig);
+    const result: TranslationResult = { files: {} };
+    
+    // Process each file to ensure correct formatting
+    for (const [path, fileData] of Object.entries(filesOutput)) {
+      result.files[path] = {
+        content: typeof fileData.content === 'string' 
+          ? fileData.content 
+          : formatResponse(JSON.stringify(fileData.content, null, 2), fileData.format),
+        format: fileData.format,
+        isMain: fileData.isMain
+      };
+    }
+    
+    return result;
   } catch (e) {
     console.error(`Error translating content: ${e}`);
     throw e;
