@@ -184,12 +184,12 @@ class CloudFormationParser extends BaseParser {
     };
 
     // Process the output based on format
-    const content = JSON.stringify(response, null, 2);
-    const formattedContent = this.replaceSpecialDirectives(content);
+    const yamlContent = this.formatFileContent(response, TemplateFormat.yaml);
+    const formattedContent = this.replaceSpecialDirectives(yamlContent);
 
     return {
       'aws-cloudformation.cf.yml': {
-        content: this.formatFileContent(formattedContent, TemplateFormat.yaml),
+        content: formattedContent,
         format: TemplateFormat.yaml,
         isMain: true
       }
