@@ -6,9 +6,10 @@ Issue closed #(issue)
 
 <!--- This is a comment, you can leave this to give information to the contributor -->
 
-- [ ] Bug fix 
+- [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
+- [ ] Release
 - [ ] Minor changes in old functionality
 
 ## Checklist
