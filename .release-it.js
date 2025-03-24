@@ -10,7 +10,9 @@ module.exports = {
     "releaseName": "v${version}"
   },
   "npm": {
-    "publish": true
+    "publish": true,
+    // Add this line to skip authentication check during PR creation
+    "skipChecks": true
   },
   "hooks": {
     "before:init": ["npm run lint"],
