@@ -9,10 +9,7 @@ module.exports = {
     "release": true,
     "releaseName": "v${version}"
   },
-  "npm": {
-    // This will be overridden by command line flags as needed
-    "publish": true
-  },
+  "npm": false, // Completely disable npm
   "hooks": {
     "before:init": ["npm run lint"],
     "after:bump": "npm run build",
