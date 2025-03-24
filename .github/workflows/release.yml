@@ -1,35 +1,40 @@
-name: Release to NPM
-
+name: Release
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - main
-      - next
-
+  
 permissions:
   contents: write
-  issues: write
   pull-requests: write
 
 jobs:
-
   release:
-    name: Run Release
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: git config
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          
+      - name: Setup node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
-      - run: npm run build
-      - run: npm audit signatures
-      - name: Release
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Prepare release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm run semantic-release
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run release -- --ci --verbose --no-git.requireCleanWorkingDir
