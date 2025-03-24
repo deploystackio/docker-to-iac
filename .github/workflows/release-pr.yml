@@ -1,4 +1,4 @@
-name: Release PR
+name: Release Process
 on:
   workflow_dispatch:
     inputs:
@@ -21,50 +21,83 @@ permissions:
   pull-requests: write
 
 jobs:
-  releaseIt:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          
       - name: git config
         run: |
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          
       - name: Setup node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+          registry-url: 'https://registry.npmjs.org'
+          
       - run: npm ci
-      - name: Prepare release
+      
+      - name: Determine if protected branch
+        id: branch-check
+        run: |
+          BRANCH_NAME=$(git symbolic-ref --short HEAD)
+          if [[ "$BRANCH_NAME" == "main" ]]; then
+            echo "protected=true" >> $GITHUB_OUTPUT
+          else
+            echo "protected=false" >> $GITHUB_OUTPUT
+          fi
+      
+      # If not on protected branch (e.g. release branch), do full release
+      - name: Full Release
+        if: steps.branch-check.outputs.protected == 'false'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TYPE_ARG: ${{ fromJSON('{"auto":"", "patch":"patch", "minor":"minor", "major":"major"}')[github.event.inputs.type] }}
-          BETA_ARG: ${{ github.event.inputs.beta == 'true' && '--preRelease=beta' || '' }}
-        run: npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --npm.skipChecks $BETA_ARG
-      - name: get-npm-version
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run release -- ${{ inputs.type }} --ci --verbose 
+      
+      # If on protected branch, create PR only
+      - name: Prepare release PR
+        if: steps.branch-check.outputs.protected == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TYPE_ARG: ${{ inputs.type }}
+          BETA_ARG: ${{ inputs.beta == 'true' && '--preRelease=beta' || '' }}
+        run: |
+          npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --npm.publish=false $BETA_ARG
+      
+      # Only run these steps if on protected branch (creating PR)
+      - name: Get version
+        if: steps.branch-check.outputs.protected == 'true'
         id: package-version
         uses: martinbeentjes/npm-get-version-action@main
+      
       - name: Extract release notes
+        if: steps.branch-check.outputs.protected == 'true'
         id: extract-release-notes
         uses: ffurrer2/extract-release-notes@v2
         with:
           changelog_file: CHANGELOG.md
+      
       - name: Create pull request
+        if: steps.branch-check.outputs.protected == 'true'
         uses: peter-evans/create-pull-request@v7
         id: cpr
         with:
-          branch: release
+          branch: release-v${{ steps.package-version.outputs.current-version }}
           delete-branch: true
-          commit-message: 'chore: release v${{ steps.package-version.outputs.current-version}}'
+          commit-message: 'chore(release): prepare release v${{ steps.package-version.outputs.current-version}}'
           title: 'Release v${{ steps.package-version.outputs.current-version}}'
           body: |
             ## Release v${{ steps.package-version.outputs.current-version}}
             
             This PR prepares a new release.
             
-            When merged, this will:
+            When merged, this PR will trigger the release process and:
             1. Create a release tag
             2. Publish the package to npm
             
@@ -74,7 +107,38 @@ jobs:
             release
             automated pr
           draft: false
+      
       - name: Show PR link
-        if: ${{ steps.cpr.outputs.pull-request-url }}
+        if: steps.branch-check.outputs.protected == 'true' && steps.cpr.outputs.pull-request-url
         run: |
           echo "Release v${{ steps.package-version.outputs.current-version}}' pull request - ${{ steps.cpr.outputs.pull-request-url }}"
+
+  # This job runs after the PR is merged
+  release-after-merge:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: git config
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Perform release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run release -- --ci --verbose
