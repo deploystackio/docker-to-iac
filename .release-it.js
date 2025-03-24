@@ -9,7 +9,10 @@ module.exports = {
     "release": true,
     "releaseName": "v${version}"
   },
-  "npm": false, // Completely disable npm
+  "npm": {
+    "publish": false,
+    "skipChecks": true
+  },
   "hooks": {
     "before:init": ["npm run lint"],
     "after:bump": "npm run build",
