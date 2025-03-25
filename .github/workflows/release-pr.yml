@@ -22,6 +22,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write  # Added this permission
 
 jobs:
   release:
@@ -98,18 +99,28 @@ jobs:
         with:
           changelog_file: CHANGELOG.md
       
-      # Create the PR
+      # Push changes to a new branch
+      - name: Push changes to release branch
+        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
+        run: |
+          git add .
+          git commit -m "chore(release): prepare release v${{ steps.package-version.outputs.current-version }}"
+          git push -f origin HEAD:release-v${{ steps.package-version.outputs.current-version }}
+
+      # Create the PR with the GitHub token
       - name: Create pull request
         if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
         uses: peter-evans/create-pull-request@v7
         id: cpr
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           branch: release-v${{ steps.package-version.outputs.current-version }}
+          base: main
           delete-branch: true
-          commit-message: 'chore(release): prepare release v${{ steps.package-version.outputs.current-version}}'
-          title: 'Release v${{ steps.package-version.outputs.current-version}}'
+          commit-message: 'chore(release): prepare release v${{ steps.package-version.outputs.current-version }}'
+          title: 'Release v${{ steps.package-version.outputs.current-version }}'
           body: |
-            ## Release v${{ steps.package-version.outputs.current-version}}
+            ## Release v${{ steps.package-version.outputs.current-version }}
             
             This PR prepares a new release.
             
@@ -124,8 +135,15 @@ jobs:
             release
             automated pr
           draft: false
+          
+      # Fallback in case PR creation fails
+      - name: Manual PR creation link
+        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true' && steps.cpr.outcome != 'success'
+        run: |
+          echo "::notice::If PR creation failed, create it manually at: https://github.com/${{ github.repository }}/compare/main...release-v${{ steps.package-version.outputs.current-version }}"
       
+      # Show PR link if creation succeeded
       - name: Show PR link
         if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true' && steps.cpr.outputs.pull-request-url
         run: |
-          echo "Release v${{ steps.package-version.outputs.current-version}}' pull request - ${{ steps.cpr.outputs.pull-request-url }}"
+          echo "Release v${{ steps.package-version.outputs.current-version }} pull request - ${{ steps.cpr.outputs.pull-request-url }}"
