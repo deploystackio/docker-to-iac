@@ -6,11 +6,10 @@ on:
         type: choice
         description: Choose release type
         options:
-          - auto
           - patch
           - minor
           - major
-        default: auto
+        default: patch
       beta:
         type: boolean
         description: Prerelease
@@ -27,7 +26,6 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    # Skip this job if workflow_dispatch was not called and PR doesn't have 'release' label
     if: |
       (github.event_name == 'workflow_dispatch') || 
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release'))
@@ -46,6 +44,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          registry-url: 'https://registry.npmjs.org'
           
       - run: npm ci
       
@@ -59,14 +58,21 @@ jobs:
             echo "protected=false" >> $GITHUB_OUTPUT
           fi
       
-      # If workflow_dispatch triggered and not on protected branch, or if PR merged with release label, do full release
-      - name: Full Release
-        if: |
-          (github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'false') || 
-          (github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release'))
+      # If PR was merged with release label, do full release
+      - name: Full Release (from merged PR)
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run release -- ${{ inputs.type || 'auto' }} --ci --verbose
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run release -- --ci --verbose
+      
+      # If workflow_dispatch triggered and not on protected branch, do full release
+      - name: Full Release (from direct trigger)
+        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run release -- ${{ inputs.type }} --ci --verbose ${{ inputs.beta == true && '--preRelease=beta' || '' }}
       
       # If on protected branch and workflow_dispatch triggered, create PR only
       - name: Prepare release PR
@@ -76,10 +82,10 @@ jobs:
           TYPE_ARG: ${{ inputs.type }}
           BETA_ARG: ${{ inputs.beta == true && '--preRelease=beta' || '' }}
         run: |
-          # Force disable npm completely
+          # Force version bump and disable npm for PR preparation
           npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG
       
-      # Only run these steps if on protected branch and creating PR
+      # Get version and extract release notes
       - name: Get version
         if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
         id: package-version
@@ -92,6 +98,7 @@ jobs:
         with:
           changelog_file: CHANGELOG.md
       
+      # Create the PR
       - name: Create pull request
         if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
         uses: peter-evans/create-pull-request@v7
@@ -109,6 +116,7 @@ jobs:
             When merged, this PR will trigger the release process and:
             1. Create a release tag
             2. Create a GitHub release
+            3. Publish to npm
             
             ## Release notes:
             ${{ steps.extract-release-notes.outputs.release_notes }}
