@@ -15,6 +15,10 @@ on:
         type: boolean
         description: Prerelease
         default: false
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -23,6 +27,10 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Skip this job if workflow_dispatch was not called and PR doesn't have 'release' label
+    if: |
+      (github.event_name == 'workflow_dispatch') || 
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release'))
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,39 +60,41 @@ jobs:
             echo "protected=false" >> $GITHUB_OUTPUT
           fi
       
-      # If not on protected branch (e.g. release branch), do full release
+      # If workflow_dispatch triggered and not on protected branch, or if PR merged with release label, do full release
       - name: Full Release
-        if: steps.branch-check.outputs.protected == 'false'
+        if: |
+          (github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'false') || 
+          (github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release'))
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm run release -- ${{ inputs.type }} --ci --verbose 
+        run: npm run release -- ${{ inputs.type || 'auto' }} --ci --verbose
       
-      # If on protected branch, create PR only
+      # If on protected branch and workflow_dispatch triggered, create PR only
       - name: Prepare release PR
-        if: steps.branch-check.outputs.protected == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TYPE_ARG: ${{ inputs.type }}
-          BETA_ARG: ${{ inputs.beta == 'true' && '--preRelease=beta' || '' }}
+          BETA_ARG: ${{ inputs.beta == true && '--preRelease=beta' || '' }}
         run: |
+          # Important - always include npm.publish=false for PR preparation
           npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --npm.publish=false $BETA_ARG
       
-      # Only run these steps if on protected branch (creating PR)
+      # Only run these steps if on protected branch and creating PR
       - name: Get version
-        if: steps.branch-check.outputs.protected == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
         id: package-version
         uses: martinbeentjes/npm-get-version-action@main
       
       - name: Extract release notes
-        if: steps.branch-check.outputs.protected == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
         id: extract-release-notes
         uses: ffurrer2/extract-release-notes@v2
         with:
           changelog_file: CHANGELOG.md
       
       - name: Create pull request
-        if: steps.branch-check.outputs.protected == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
         uses: peter-evans/create-pull-request@v7
         id: cpr
         with:
@@ -99,7 +109,7 @@ jobs:
             
             When merged, this PR will trigger the release process and:
             1. Create a release tag
-            2. Publish the package to npm
+            2. Create a GitHub release
             
             ## Release notes:
             ${{ steps.extract-release-notes.outputs.release_notes }}
@@ -109,36 +119,6 @@ jobs:
           draft: false
       
       - name: Show PR link
-        if: steps.branch-check.outputs.protected == 'true' && steps.cpr.outputs.pull-request-url
+        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true' && steps.cpr.outputs.pull-request-url
         run: |
           echo "Release v${{ steps.package-version.outputs.current-version}}' pull request - ${{ steps.cpr.outputs.pull-request-url }}"
-
-  # This job runs after the PR is merged
-  release-after-merge:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - name: git config
-        run: |
-          git config user.name "${GITHUB_ACTOR}"
-          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-          
-      - name: Setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          registry-url: 'https://registry.npmjs.org'
-          
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Perform release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm run release -- --ci --verbose
