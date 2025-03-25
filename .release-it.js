@@ -10,7 +10,7 @@ module.exports = {
     "releaseName": "v${version}"
   },
   "npm": {
-    "publish": false,
+    "publish": true,
     "skipChecks": true
   },
   "hooks": {
