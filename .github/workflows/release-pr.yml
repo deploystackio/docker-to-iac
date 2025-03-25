@@ -46,7 +46,6 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          registry-url: 'https://registry.npmjs.org'
           
       - run: npm ci
       
@@ -77,8 +76,8 @@ jobs:
           TYPE_ARG: ${{ inputs.type }}
           BETA_ARG: ${{ inputs.beta == true && '--preRelease=beta' || '' }}
         run: |
-          # Important - always include npm.publish=false for PR preparation
-          npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --npm.publish=false $BETA_ARG
+          # Force disable npm completely
+          npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG
       
       # Only run these steps if on protected branch and creating PR
       - name: Get version
