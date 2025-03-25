@@ -14,22 +14,15 @@ on:
         type: boolean
         description: Prerelease
         default: false
-  pull_request:
-    types: [closed]
-    branches:
-      - main
 
 permissions:
   contents: write
   pull-requests: write
-  issues: write  # Added this permission
+  issues: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'workflow_dispatch') || 
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release'))
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,101 +42,23 @@ jobs:
           
       - run: npm ci
       
-      - name: Determine if protected branch
-        id: branch-check
-        run: |
-          BRANCH_NAME=$(git symbolic-ref --short HEAD)
-          if [[ "$BRANCH_NAME" == "main" ]]; then
-            echo "protected=true" >> $GITHUB_OUTPUT
-          else
-            echo "protected=false" >> $GITHUB_OUTPUT
-          fi
-      
-      # If PR was merged with release label, do full release
-      - name: Full Release (from merged PR)
-        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
+      # Run release-it directly with the selected version type
+      - name: Perform release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm run release -- --ci --verbose
-      
-      # If workflow_dispatch triggered and not on protected branch, do full release
-      - name: Full Release (from direct trigger)
-        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'false'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm run release -- ${{ inputs.type }} --ci --verbose ${{ inputs.beta == true && '--preRelease=beta' || '' }}
-      
-      # If on protected branch and workflow_dispatch triggered, create PR only
-      - name: Prepare release PR
-        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TYPE_ARG: ${{ inputs.type }}
           BETA_ARG: ${{ inputs.beta == true && '--preRelease=beta' || '' }}
         run: |
-          # Force version bump and disable npm for PR preparation
-          npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG
-      
-      # Get version and extract release notes
-      - name: Get version
-        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
+          # Execute release-it with the specified options
+          npm run release -- $TYPE_ARG --ci --verbose $BETA_ARG
+          
+      # Get the version after release for informational purposes
+      - name: Get released version
         id: package-version
         uses: martinbeentjes/npm-get-version-action@main
-      
-      - name: Extract release notes
-        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
-        id: extract-release-notes
-        uses: ffurrer2/extract-release-notes@v2
-        with:
-          changelog_file: CHANGELOG.md
-      
-      # Push changes to a new branch
-      - name: Push changes to release branch
-        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
+        
+      - name: Show release information
         run: |
-          git add .
-          git commit -m "chore(release): prepare release v${{ steps.package-version.outputs.current-version }}"
-          git push -f origin HEAD:release-v${{ steps.package-version.outputs.current-version }}
-
-      # Create the PR with the GitHub token
-      - name: Create pull request
-        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true'
-        uses: peter-evans/create-pull-request@v7
-        id: cpr
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: release-v${{ steps.package-version.outputs.current-version }}
-          base: main
-          delete-branch: true
-          commit-message: 'chore(release): prepare release v${{ steps.package-version.outputs.current-version }}'
-          title: 'Release v${{ steps.package-version.outputs.current-version }}'
-          body: |
-            ## Release v${{ steps.package-version.outputs.current-version }}
-            
-            This PR prepares a new release.
-            
-            When merged, this PR will trigger the release process and:
-            1. Create a release tag
-            2. Create a GitHub release
-            3. Publish to npm
-            
-            ## Release notes:
-            ${{ steps.extract-release-notes.outputs.release_notes }}
-          labels: |
-            release
-            automated pr
-          draft: false
-          
-      # Fallback in case PR creation fails
-      - name: Manual PR creation link
-        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true' && steps.cpr.outcome != 'success'
-        run: |
-          echo "::notice::If PR creation failed, create it manually at: https://github.com/${{ github.repository }}/compare/main...release-v${{ steps.package-version.outputs.current-version }}"
-      
-      # Show PR link if creation succeeded
-      - name: Show PR link
-        if: github.event_name == 'workflow_dispatch' && steps.branch-check.outputs.protected == 'true' && steps.cpr.outputs.pull-request-url
-        run: |
-          echo "Release v${{ steps.package-version.outputs.current-version }} pull request - ${{ steps.cpr.outputs.pull-request-url }}"
+          echo "::notice::🚀 Released version v${{ steps.package-version.outputs.current-version }}"
+          echo "::notice::📦 Published to npm as @deploystack/docker-to-iac@${{ steps.package-version.outputs.current-version }}"
