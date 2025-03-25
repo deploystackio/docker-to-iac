@@ -14,6 +14,10 @@ on:
         type: boolean
         description: Prerelease
         default: false
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -21,7 +25,80 @@ permissions:
   issues: write
 
 jobs:
-  release:
+  # This job prepares a release PR
+  prepare-release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: git config
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          
+      - run: npm ci
+      
+      # Prepare the version change but don't push anything yet
+      - name: Prepare release changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TYPE_ARG: ${{ inputs.type }}
+          BETA_ARG: ${{ inputs.beta == true && '--preRelease=beta' || '' }}
+        run: |
+          # Only prepare the version changes without git operations
+          npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG
+      
+      # Get the version that was set
+      - name: Get version
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@main
+      
+      # Create a branch with the changes and push it
+      - name: Create and push branch
+        run: |
+          # Create a new branch
+          BRANCH_NAME="release-v${{ steps.package-version.outputs.current-version }}"
+          git checkout -b $BRANCH_NAME
+          
+          # Add the changes
+          git add .
+          
+          # Commit the changes
+          git commit -m "chore(release): prepare release v${{ steps.package-version.outputs.current-version }}"
+          
+          # Push the branch
+          git push origin $BRANCH_NAME
+          
+          # Output the PR creation URL to the logs
+          echo "::notice::✅ Branch created and pushed: $BRANCH_NAME"
+          echo "::notice::⚠️ You must manually create a PR from this branch at this URL:"
+          echo "::notice::➡️ https://github.com/${{ github.repository }}/compare/main...$BRANCH_NAME?expand=1"
+          echo "::notice::📝 Important: Add the 'release' label to your PR for the release workflow to run when merged"
+          
+          # Also output to step summary for better visibility
+          echo "# Release Branch Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The release branch has been created and pushed as: \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. [Create a pull request](https://github.com/${{ github.repository }}/compare/main...$BRANCH_NAME?expand=1) from this branch" >> $GITHUB_STEP_SUMMARY
+          echo "2. Add the 'release' label to your PR" >> $GITHUB_STEP_SUMMARY
+          echo "3. Get the PR reviewed and merged" >> $GITHUB_STEP_SUMMARY
+          echo "4. Once merged, the release will automatically be published" >> $GITHUB_STEP_SUMMARY
+
+  # This job performs the actual release after a PR has been merged
+  publish-release:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,23 +119,26 @@ jobs:
           
       - run: npm ci
       
-      # Run release-it directly with the selected version type
-      - name: Perform release
+      # Create the tag and GitHub release
+      - name: Create GitHub release tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          TYPE_ARG: ${{ inputs.type }}
-          BETA_ARG: ${{ inputs.beta == true && '--preRelease=beta' || '' }}
         run: |
-          # Execute release-it with the specified options
-          npm run release -- $TYPE_ARG --ci --verbose $BETA_ARG
+          # Create a tag for the version
+          VERSION=$(node -p "require('./package.json').version")
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
           
-      # Get the version after release for informational purposes
-      - name: Get released version
-        id: package-version
-        uses: martinbeentjes/npm-get-version-action@main
-        
-      - name: Show release information
+          # Extract changelog entries for this version
+          CHANGELOG_ENTRY=$(awk "/## \\[$VERSION\\]/,/## \\[/ { if (!/## \\[$VERSION\\]/ && /## \\[/) exit; print }" CHANGELOG.md)
+          
+          # Create GitHub release
+          gh release create "v$VERSION" --title "v$VERSION" --notes "$CHANGELOG_ENTRY"
+          
+      # Publish to npm
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "::notice::🚀 Released version v${{ steps.package-version.outputs.current-version }}"
-          echo "::notice::📦 Published to npm as @deploystack/docker-to-iac@${{ steps.package-version.outputs.current-version }}"
+          # Publish the package to npm
+          npm publish --access public
