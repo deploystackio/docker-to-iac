@@ -7,6 +7,8 @@ import renderParserInstance from './parsers/render';
 import digitalOceanParserInstance from './parsers/digitalocean';
 import { createSourceParser } from './sources/factory';
 import { parseEnvFile } from './utils/parseEnvFile';
+import { resolveServiceConnections } from './utils/resolveServiceConnections';
+import { providerConnectionConfigs } from './config/service-connections';
 
 // Store for generated environment variables
 const generatedEnvVars = new Map<string, Record<string, Record<string, string>>>();
@@ -85,15 +87,41 @@ function translate(content: string, options: TranslateOptions): TranslationResul
       throw new Error(`Unsupported target language: ${options.target}`);
     }
 
+    // Get provider abbreviation for service connection config lookup
+    const providerAbbreviation = parser.getInfo().languageAbbreviation;
+
     const containerConfig = getProcessedConfig(content, options.source, {
       envGeneration: options.environmentVariableGeneration,
       envVariables: options.environmentVariables,
       persistenceKey: options.persistenceKey
     });
 
+    // Process service connections if provided
+    let resolvedServiceConnections;
+    if (options.serviceConnections && providerConnectionConfigs[providerAbbreviation]) {
+      // Get the provider-specific connection configuration
+      const providerConnectionConfig = providerConnectionConfigs[providerAbbreviation];
+      
+      // Resolve service connections based on provider config
+      resolvedServiceConnections = resolveServiceConnections(
+        containerConfig,
+        options.serviceConnections,
+        providerConnectionConfig
+      );
+      
+      // Add service connections to the container config
+      // to be accessed by parsers that use native reference mechanisms
+      if (resolvedServiceConnections) {
+        containerConfig.serviceConnections = resolvedServiceConnections;
+      }
+    }
+
     // Get files from parser
     const filesOutput = parser.parseFiles(containerConfig);
-    const result: TranslationResult = { files: {} };
+    const result: TranslationResult = { 
+      files: {},
+      serviceConnections: resolvedServiceConnections
+    };
     
     // Process each file to ensure correct formatting
     for (const [path, fileData] of Object.entries(filesOutput)) {

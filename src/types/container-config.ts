@@ -1,5 +1,6 @@
 import { DockerImageInfo, TemplateFormat } from '../parsers/base-parser';
 import { EnvironmentVariableGenerationConfig } from './environment-config';
+import { ServiceConnectionsConfig, ResolvedServiceConnection } from './service-connections';
 
 export interface PortMapping {
   host: number;
@@ -28,6 +29,7 @@ export interface ApplicationConfig {
   services: {
     [key: string]: ContainerConfig;
   };
+  serviceConnections?: ResolvedServiceConnection[]; // Add this line
 }
 
 export interface FileOutput {
@@ -38,6 +40,7 @@ export interface FileOutput {
 
 export interface TranslationResult {
   files: { [path: string]: FileOutput };
+  serviceConnections?: ResolvedServiceConnection[];
 }
 
 export type TranslateOptions = {
@@ -47,6 +50,7 @@ export type TranslateOptions = {
   environmentVariableGeneration?: EnvironmentVariableGenerationConfig;
   environmentVariables?: Record<string, string>;
   persistenceKey?: string;
+  serviceConnections?: ServiceConnectionsConfig;
 };
 
 export type ListServicesOptions = {
