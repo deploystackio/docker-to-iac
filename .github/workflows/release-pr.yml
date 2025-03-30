@@ -68,8 +68,26 @@ jobs:
           # Update package.json with the new version
           sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" package.json
           
-          # Now run release-it for real to update the changelog
-          npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG
+          # Extract the changelog from dry run output and save it
+          CHANGELOG=$(echo "$NEW_VERSION_INFO" | sed -n '/^Changelog:/,/^\$ npm run build/p' | grep -v '^\$ npm run build')
+          # Format the changelog - remove 'Changelog:' line and ensure we use ## for version headers
+          CHANGELOG=$(echo "$CHANGELOG" | sed '1d' | sed "s/# \[$NEW_VERSION\]/## \[$NEW_VERSION\]/")
+          
+          # Get the existing changelog content
+          EXISTING_CHANGELOG=$(cat CHANGELOG.md)
+          
+          # Check if changelog already has the new version header
+          if ! grep -q "## \[$NEW_VERSION\]" CHANGELOG.md; then
+            # Insert the new changelog after the header
+            echo -e "# Changelog\n\n$CHANGELOG\n$(echo "$EXISTING_CHANGELOG" | tail -n +2)" > CHANGELOG.md
+          fi
+          
+          # No need to run release-it again - we've already updated version and changelog
+          
+          echo "Version and changelog updated successfully!"
+          
+          # Also run the build to ensure everything is up to date
+          npm run build
       
       # Get the version from package.json (which should now be updated)
       - name: Get version
