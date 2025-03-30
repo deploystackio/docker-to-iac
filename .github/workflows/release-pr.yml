@@ -47,17 +47,31 @@ jobs:
           
       - run: npm ci
       
-      # Prepare the version change but don't push anything yet
+      # Prepare the version change and update files
       - name: Prepare release changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TYPE_ARG: ${{ inputs.type }}
           BETA_ARG: ${{ inputs.beta == true && '--preRelease=beta' || '' }}
         run: |
-          # Run the release-it command but allow it to update version files
-          npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG --increment-version
+          # First, get the current version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          
+          # Run release-it to get the new version information, but don't make changes
+          NEW_VERSION_INFO=$(npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG --dry-run)
+          
+          # Extract the new version from the output
+          NEW_VERSION=$(echo "$NEW_VERSION_INFO" | grep -o "Let's release docker-to-iac ([^)]*)" | sed 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+          echo "Current version: $CURRENT_VERSION"
+          echo "New version: $NEW_VERSION"
+          
+          # Update package.json with the new version
+          sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" package.json
+          
+          # Now run release-it for real to update the changelog
+          npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG
       
-      # Get the version that was set
+      # Get the version from package.json (which should now be updated)
       - name: Get version
         id: package-version
         uses: martinbeentjes/npm-get-version-action@main
@@ -65,11 +79,11 @@ jobs:
       # Create a branch with the changes and push it
       - name: Create and push branch
         run: |
-          # Get the new version that was prepared but not committed
+          # Get the new version that was prepared
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "New version is: $NEW_VERSION"
           
-          # Create a new branch using the NEW_VERSION, not steps.package-version.outputs.current-version
+          # Create a new branch using the NEW_VERSION
           BRANCH_NAME="release-v$NEW_VERSION"
           git checkout -b $BRANCH_NAME
           
