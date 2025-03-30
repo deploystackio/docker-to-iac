@@ -54,8 +54,8 @@ jobs:
           TYPE_ARG: ${{ inputs.type }}
           BETA_ARG: ${{ inputs.beta == true && '--preRelease=beta' || '' }}
         run: |
-          # Only prepare the version changes without git operations
-          npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG
+          # Run the release-it command but allow it to update version files
+          npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG --increment-version
       
       # Get the version that was set
       - name: Get version

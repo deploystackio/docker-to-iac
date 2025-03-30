@@ -23,7 +23,8 @@ module.exports = {
       "preset": "angular",
       "infile": "CHANGELOG.md",
       "ignoreRecommendedBump": true,
-      "header": "# Changelog\n"
+      "header": "# Changelog\n",
+      "headerFormat": "## [{version}]"
     }
   }
 };
