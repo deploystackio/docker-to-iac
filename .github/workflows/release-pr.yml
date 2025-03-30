@@ -69,7 +69,8 @@ jobs:
           sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" package.json
           
           # Extract the changelog from dry run output and save it
-          CHANGELOG=$(echo "$NEW_VERSION_INFO" | sed -n '/^Changelog:/,/^\$ npm run build/p' | grep -v '^\$ npm run build')
+          CHANGELOG=$(echo "$NEW_VERSION_INFO" | sed -n '/^Changelog:/,/^\$ npm run build/p' | grep -v '^\$ npm run build' | grep -v '^\$ ' | grep -v '^!' | grep -v 'Done')
+
           # Format the changelog - remove 'Changelog:' line and ensure we use ## for version headers
           CHANGELOG=$(echo "$CHANGELOG" | sed '1d' | sed "s/# \[$NEW_VERSION\]/## \[$NEW_VERSION\]/")
           
