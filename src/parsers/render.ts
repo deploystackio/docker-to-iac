@@ -51,7 +51,6 @@ class RenderParser extends BaseParser {
       const service: any = {
         name: serviceName,
         type: getRenderServiceType(serviceConfig.image),
-        env: 'docker',
         runtime: 'image',
         image: { url: getImageUrl(constructImageString(serviceConfig.image)) },
         startCommand: parseCommand(serviceConfig.command),
