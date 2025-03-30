@@ -1,63 +1,20 @@
-// src/utils/resolveServiceConnections.ts
 import { ApplicationConfig } from '../types/container-config';
 import { 
   ServiceConnectionsConfig, 
   ResolvedServiceConnection,
-  ProviderServiceConnectionConfig,
-  ServiceTypeMapping
+  ProviderConnectionConfig
 } from '../types/service-connections';
-import { getImageUrl } from './getImageUrl';
-import { constructImageString } from './constructImageString';
 
 /**
- * Detect service type based on image name
- */
-function detectServiceType(
-  imageName: string, 
-  serviceTypeMappings: ServiceTypeMapping[]
-): { serviceType: string, defaultPort: number } {
-  for (const mapping of serviceTypeMappings) {
-    if (imageName.includes(mapping.imagePattern)) {
-      return {
-        serviceType: mapping.serviceType,
-        defaultPort: mapping.defaultPort
-      };
-    }
-  }
-  
-  // Default to generic web service
-  return {
-    serviceType: 'web',
-    defaultPort: 80
-  };
-}
-
-/**
- * Get service type mappings for various common images
- */
-function getServiceTypeMappings(): ServiceTypeMapping[] {
-  return [
-    { imagePattern: 'mysql', serviceType: 'mysql', defaultPort: 3306 },
-    { imagePattern: 'mariadb', serviceType: 'mariadb', defaultPort: 3306 },
-    { imagePattern: 'postgres', serviceType: 'postgres', defaultPort: 5432 },
-    { imagePattern: 'redis', serviceType: 'redis', defaultPort: 6379 },
-    { imagePattern: 'mongodb', serviceType: 'mongodb', defaultPort: 27017 },
-    { imagePattern: 'nginx', serviceType: 'web', defaultPort: 80 },
-    { imagePattern: 'node', serviceType: 'web', defaultPort: 8080 },
-  ];
-}
-
-/**
- * Resolve service connections for a specific cloud provider
+ * Replace service references in environment variable values based on provider configuration
  */
 export function resolveServiceConnections(
   config: ApplicationConfig,
   serviceConnections: ServiceConnectionsConfig,
-  providerConfig: ProviderServiceConnectionConfig
+  providerConfig: ProviderConnectionConfig
 ): ResolvedServiceConnection[] {
   const resolvedConnections: ResolvedServiceConnection[] = [];
-  const serviceTypeMappings = getServiceTypeMappings();
-  
+
   for (const mapping of serviceConnections.mappings) {
     const { fromService, toService, environmentVariables } = mapping;
     
@@ -67,42 +24,42 @@ export function resolveServiceConnections(
       continue;
     }
     
-    const toServiceImage = config.services[toService].image;
-    const imageName = getImageUrl(constructImageString(toServiceImage));
+    // Get environment variables for the source service
+    const serviceEnv = config.services[fromService].environment;
     
-    // Detect service type for the target service
-    const { serviceType, defaultPort } = detectServiceType(imageName, serviceTypeMappings);
-    
-    // Determine the connection format to use
-    let connectionFormat = providerConfig.defaultFormat;
-    if (providerConfig.serviceFormats && providerConfig.serviceFormats[serviceType]) {
-      connectionFormat = providerConfig.serviceFormats[serviceType];
-    }
-    
-    // Create resolved variables
-    const resolvedVars: Record<string, string> = {};
-    
-    for (const [varName, varConfig] of Object.entries(environmentVariables)) {
-      // Determine port to use
-      const port = varConfig.port || providerConfig.defaultPorts[serviceType] || defaultPort;
-      
-      // Determine format to use (variable specific, or the connection format)
-      const format = varConfig.format || connectionFormat;
-      
-      // Replace variables in the format
-      let value = format.replace('${serviceName}', toService)
-                        .replace('${port}', port.toString());
-      
-      resolvedVars[varName] = value;
-    }
-    
-    // Add to resolved connections
-    resolvedConnections.push({
+    // Create resolved connection
+    const resolvedConnection: ResolvedServiceConnection = {
       fromService,
       toService,
-      variables: resolvedVars,
-      resolvedServiceName: toService
-    });
+      variables: {}
+    };
+    
+    // Process each environment variable that references the target service
+    for (const varName of environmentVariables) {
+      if (varName in serviceEnv) {
+        const originalValue = serviceEnv[varName];
+        
+        // Apply the provider's service reference format
+        let transformedValue = originalValue;
+        
+        // Replace exact service name with the provider-specific format
+        const serviceNamePattern = new RegExp(`\\b${toService}\\b`, 'g');
+        const replacementValue = providerConfig.serviceReferenceFormat.replace('${serviceName}', toService);
+        
+        transformedValue = transformedValue.replace(serviceNamePattern, replacementValue);
+        
+        // Store the original and transformed values
+        resolvedConnection.variables[varName] = {
+          originalValue,
+          transformedValue
+        };
+        
+        // Update the environment variable in the source service
+        config.services[fromService].environment[varName] = transformedValue;
+      }
+    }
+    
+    resolvedConnections.push(resolvedConnection);
   }
   
   return resolvedConnections;
