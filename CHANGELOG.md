@@ -1,19 +1,5 @@
 # Changelog
 
-# [1.21.0](https://github.com/deploystackio/docker-to-iac/compare/v1.20.1...v1.21.0) (2025-03-30)
-
-
-### Bug Fixes
-
-* remove hardcoded environment type from RenderParser ([8fe96a1](https://github.com/deploystackio/docker-to-iac/commit/8fe96a10e427ff09929f558b5a191b0beb4624cb))
-
-
-### Features
-
-* enhance service connection handling with native references and update configurations ([3a2143e](https://github.com/deploystackio/docker-to-iac/commit/3a2143ed9c3a43a164b772947dc16db85ade478c))
-* simplify service connection resolution by replacing service references in environment variables ([7b65d8a](https://github.com/deploystackio/docker-to-iac/commit/7b65d8a35c4956ed37726ec15046487203492734))
-* update version to 1.20.1 and add service connection resolution functionality ([c870ee7](https://github.com/deploystackio/docker-to-iac/commit/c870ee76c2f5f91d2e151e73948f0b89bc5a211e))
-
 ## [1.20.1](https://github.com/deploystackio/docker-to-iac/compare/v1.20.0...v1.20.1) (2025-03-25)
 
 

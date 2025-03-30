@@ -22,7 +22,8 @@ module.exports = {
     "@release-it/conventional-changelog": {
       "preset": "angular",
       "infile": "CHANGELOG.md",
-      "ignoreRecommendedBump": true
+      "ignoreRecommendedBump": true,
+      "header": "# Changelog\n"
     }
   }
 };
