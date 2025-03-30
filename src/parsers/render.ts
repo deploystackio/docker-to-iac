@@ -63,6 +63,34 @@ class RenderParser extends BaseParser {
         }))
       };
 
+      // Process any service connections for Render Blueprint
+      if (config.serviceConnections) {
+        for (const connection of config.serviceConnections) {
+          if (connection.fromService === serviceName) {
+            // For each referenced variable
+            for (const [varName] of Object.entries(connection.variables)) {
+              // Define the type for the env parameter explicitly
+              const index = service.envVars.findIndex((env: { key: string, value?: string }) => env.key === varName);
+              
+              // Remove existing env var if found
+              if (index > -1) {
+                service.envVars.splice(index, 1);
+              }
+              
+              // Add using Render Blueprint fromService syntax
+              service.envVars.push({
+                key: varName,
+                fromService: {
+                  name: connection.toService,
+                  type: getRenderServiceType(config.services[connection.toService].image),
+                  property: 'hostport' // Default to hostport for most connections
+                }
+              });
+            }
+          }
+        }
+      }
+
       // Add disk configuration if volumes are present
       if (serviceConfig.volumes && serviceConfig.volumes.length > 0) {
         // Take the first volume - Render only supports one disk per service

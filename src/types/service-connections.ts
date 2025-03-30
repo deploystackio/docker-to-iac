@@ -10,7 +10,14 @@ export type ConnectionFormat = string;
 export interface ProviderConnectionConfig {
   // The format template to use for service references 
   // (can use ${serviceName} as a variable)
-  serviceReferenceFormat: ConnectionFormat;
+  serviceReferenceFormat?: ConnectionFormat;
+  
+  // Whether to use provider's native service reference mechanism
+  // instead of string replacement
+  useProviderNativeReferences?: boolean;
+  
+  // What type of native implementation to use
+  implementationType?: 'blueprint-reference' | 'service-discovery';
 }
 
 /**

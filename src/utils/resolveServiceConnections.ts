@@ -38,24 +38,25 @@ export function resolveServiceConnections(
     for (const varName of environmentVariables) {
       if (varName in serviceEnv) {
         const originalValue = serviceEnv[varName];
-        
-        // Apply the provider's service reference format
         let transformedValue = originalValue;
         
-        // Replace exact service name with the provider-specific format
-        const serviceNamePattern = new RegExp(`\\b${toService}\\b`, 'g');
-        const replacementValue = providerConfig.serviceReferenceFormat.replace('${serviceName}', toService);
-        
-        transformedValue = transformedValue.replace(serviceNamePattern, replacementValue);
+        // For providers that don't use native service references
+        if (!providerConfig.useProviderNativeReferences) {
+          // Replace exact service name with the provider-specific format
+          const serviceNamePattern = new RegExp(`\\b${toService}\\b`, 'g');
+          const replacementValue = providerConfig.serviceReferenceFormat?.replace('${serviceName}', toService) || toService;
+          
+          transformedValue = transformedValue.replace(serviceNamePattern, replacementValue);
+          
+          // Update the environment variable in the source service
+          config.services[fromService].environment[varName] = transformedValue;
+        }
         
         // Store the original and transformed values
         resolvedConnection.variables[varName] = {
           originalValue,
           transformedValue
         };
-        
-        // Update the environment variable in the source service
-        config.services[fromService].environment[varName] = transformedValue;
       }
     }
     

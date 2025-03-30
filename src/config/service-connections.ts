@@ -2,23 +2,20 @@ import { ProviderConnectionConfig } from '../types/service-connections';
 
 /**
  * Provider-specific connection formats
+ * Note: AWS CloudFormation removed as it doesn't support direct service-to-service communication
+ * in a way that can be templated with environment variables
  */
 export const providerConnectionConfigs: Record<string, ProviderConnectionConfig> = {
-  // AWS CloudFormation
-  'CFN': {
-    // In ECS, services connect via service names within the same task
-    serviceReferenceFormat: '${serviceName}'
-  },
-  
-  // Render.com
+  // Render.com - using blueprint fromService syntax
   'RND': {
-    // Render services connect to each other using the service name
-    serviceReferenceFormat: '${serviceName}'
+    // Uses Render Blueprint's fromService capability
+    useProviderNativeReferences: true,
+    implementationType: 'blueprint-reference'
   },
   
-  // DigitalOcean App Platform
+  // DigitalOcean App Platform - simple service name
   'DOP': {
-    // DigitalOcean App Platform uses internal hostnames
-    serviceReferenceFormat: '${serviceName}.internal'
+    // DigitalOcean uses simple service names for internal communication
+    serviceReferenceFormat: '${serviceName}'
   }
 };
