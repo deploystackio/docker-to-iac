@@ -108,6 +108,12 @@ function translate(content: string, options: TranslateOptions): TranslationResul
         options.serviceConnections,
         providerConnectionConfig
       );
+      
+      // Add service connections to the container config
+      // to be accessed by parsers that use native reference mechanisms
+      if (resolvedServiceConnections) {
+        containerConfig.serviceConnections = resolvedServiceConnections;
+      }
     }
 
     // Get files from parser

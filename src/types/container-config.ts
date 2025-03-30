@@ -29,6 +29,7 @@ export interface ApplicationConfig {
   services: {
     [key: string]: ContainerConfig;
   };
+  serviceConnections?: ResolvedServiceConnection[]; // Add this line
 }
 
 export interface FileOutput {
