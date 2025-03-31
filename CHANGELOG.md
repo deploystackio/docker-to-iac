@@ -1,12 +1,5 @@
 # Changelog
 
-## [1.21.1](https://github.com/deploystackio/docker-to-iac/compare/v1.21.0...v1.21.1) (2025-03-31)
-### Chores
-
-* chore: bump yaml from 2.7.0 to 2.7.1 [175e001]
-* chore: bump @types/semver from 7.5.8 to 7.7.0 [54d7dbe]
-* chore: bump @types/node from 22.13.13 to 22.13.14 [bf1e71b]
-
 ## [1.21.0](https://github.com/deploystackio/docker-to-iac/compare/v1.20.1...v1.21.0) (2025-03-30)
 
 ### Bug Fixes
