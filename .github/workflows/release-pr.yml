@@ -47,6 +47,7 @@ jobs:
           
       - run: npm ci
       
+      # Prepare the version change and update files
       - name: Prepare release changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -67,14 +68,31 @@ jobs:
           # Update package.json with the new version
           sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" package.json
           
-          # Create a backup of the existing changelog
-          cp CHANGELOG.md CHANGELOG.md.bak
+          # Extract changelog data from the dry run output
+          CHANGELOG=$(echo "$NEW_VERSION_INFO" | sed -n '/^Changelog:/,/^\$ npm run build/p' | grep -v '^\$ npm run build' | grep -v '^\$ ' | grep -v '^!' | grep -v 'Done')
+          CHANGELOG=$(echo "$CHANGELOG" | sed '1d')
           
-          # Let release-it generate the changelog correctly
-          # Run release-it in a way that only updates the changelog but doesn't commit or push
-          npm run release -- $TYPE_ARG --ci --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG --no-increment
+          # First, get all the dependabot commits since the last tag
+          DEPENDABOT_COMMITS=$(git log v$CURRENT_VERSION..HEAD --author="dependabot" --format="* %s [%h]")
           
-          # For clarity, build the project after changes
+          if [ ! -z "$DEPENDABOT_COMMITS" ]; then
+            # Format dependabot commits for the changelog
+            DEPENDABOT_SECTION="### Chores\n\n$DEPENDABOT_COMMITS\n\n"
+            
+            # Add the dependabot section to the changelog
+            CHANGELOG=$(echo "$CHANGELOG" | awk -v deps="$DEPENDABOT_SECTION" '{print} /\(.*\)/ && !printed {print deps; printed=1}')
+          fi
+          
+          # Get the existing changelog content
+          EXISTING_CHANGELOG=$(cat CHANGELOG.md)
+          
+          # Check if changelog already has the new version header
+          if ! grep -q "## \[$NEW_VERSION\]" CHANGELOG.md; then
+            # Insert the new changelog after the header
+            echo -e "# Changelog\n\n$CHANGELOG\n$(echo "$EXISTING_CHANGELOG" | tail -n +2)" > CHANGELOG.md
+          fi
+          
+          # Build the project after changes
           npm run build
 
       # Get the version from package.json (which should now be updated)
