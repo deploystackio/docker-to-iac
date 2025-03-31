@@ -152,7 +152,7 @@ jobs:
           
       - run: npm ci
       
-      # Create the tag and GitHub release
+      # Create GitHub release tag
       - name: Create GitHub release tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -163,12 +163,14 @@ jobs:
           git push origin "v$VERSION"
           
           # Extract changelog entries for this version
-          CHANGELOG_ENTRY=$(awk "/## \\[$VERSION\\]/,/## \\[/ { if (!/## \\[$VERSION\\]/ && /## \\[/) exit; print }" CHANGELOG.md)
+          CHANGELOG_ENTRY=$(sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '1p;/## \[/d')
           
           # Create GitHub release
           gh release create "v$VERSION" --title "v$VERSION" --notes "$CHANGELOG_ENTRY"
           
-      # Publish to npm
+      - name: Build project
+        run: npm run build          
+
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
