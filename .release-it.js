@@ -34,7 +34,14 @@ module.exports = {
         {"type": "refactor", "section": "Code Refactoring"},
         {"type": "perf", "section": "Performance Improvements"},
         {"type": "test", "section": "Tests"}
-      ]
+      ],
+      "writerOpts": {
+        "commitsSort": ["subject", "scope"],
+        "includeDetails": true,
+        "ignoreReverted": true,
+        "issuePrefixes": ["#"],
+        "filterByAuthor": false
+      }
     }
   }
 };
