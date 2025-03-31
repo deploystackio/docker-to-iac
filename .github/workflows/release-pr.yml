@@ -72,11 +72,11 @@ jobs:
           CHANGELOG=$(echo "$NEW_VERSION_INFO" | sed -n '/^Changelog:/,/^\$ npm run build/p' | grep -v '^\$ npm run build' | grep -v '^\$ ' | grep -v '^!' | grep -v 'Done')
 
           # Format the changelog - remove 'Changelog:' line and ensure we use ## for version headers
-          CHANGELOG=$(echo "$CHANGELOG" | sed '1d' | sed "s/# \[$NEW_VERSION\]/## \[$NEW_VERSION\]/")
-          
+          CHANGELOG=$(echo "$CHANGELOG" | sed '1d')
+
           # Get the existing changelog content
           EXISTING_CHANGELOG=$(cat CHANGELOG.md)
-          
+
           # Check if changelog already has the new version header
           if ! grep -q "## \[$NEW_VERSION\]" CHANGELOG.md; then
             # Insert the new changelog after the header
