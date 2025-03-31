@@ -20,21 +20,23 @@ module.exports = {
   },
   "plugins": {
     "@release-it/conventional-changelog": {
-      "preset": "angular",
+      "preset": {
+        "name": "angular",
+        "types": [
+          { "type": "feat", "section": "Features" },
+          { "type": "fix", "section": "Bug Fixes" },
+          { "type": "chore", "section": "Chores" },
+          { "type": "docs", "section": "Documentation" },
+          { "type": "style", "section": "Styles" },
+          { "type": "refactor", "section": "Code Refactoring" },
+          { "type": "perf", "section": "Performance Improvements" },
+          { "type": "test", "section": "Tests" }
+        ]
+      },
       "infile": "CHANGELOG.md",
       "ignoreRecommendedBump": true,
       "header": "# Changelog\n",
-      "headerFormat": "## [{version}]",
-      "types": [
-        {"type": "feat", "section": "Features"},
-        {"type": "fix", "section": "Bug Fixes"},
-        {"type": "chore", "section": "Chores"},
-        {"type": "docs", "section": "Documentation"},
-        {"type": "style", "section": "Styles"},
-        {"type": "refactor", "section": "Code Refactoring"},
-        {"type": "perf", "section": "Performance Improvements"},
-        {"type": "test", "section": "Tests"}
-      ]
+      "headerFormat": "## [{version}]"
     }
   }
 };

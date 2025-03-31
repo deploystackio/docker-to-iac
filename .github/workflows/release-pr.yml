@@ -47,7 +47,6 @@ jobs:
           
       - run: npm ci
       
-      # Prepare the version change and update files
       - name: Prepare release changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,28 +67,16 @@ jobs:
           # Update package.json with the new version
           sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" package.json
           
-          # Extract the changelog from dry run output and save it
-          CHANGELOG=$(echo "$NEW_VERSION_INFO" | sed -n '/^Changelog:/,/^\$ npm run build/p' | grep -v '^\$ npm run build' | grep -v '^\$ ' | grep -v '^!' | grep -v 'Done')
-
-          # Format the changelog - remove 'Changelog:' line and ensure we use ## for version headers
-          CHANGELOG=$(echo "$CHANGELOG" | sed '1d')
-
-          # Get the existing changelog content
-          EXISTING_CHANGELOG=$(cat CHANGELOG.md)
-
-          # Check if changelog already has the new version header
-          if ! grep -q "## \[$NEW_VERSION\]" CHANGELOG.md; then
-            # Insert the new changelog after the header
-            echo -e "# Changelog\n\n$CHANGELOG\n$(echo "$EXISTING_CHANGELOG" | tail -n +2)" > CHANGELOG.md
-          fi
+          # Create a backup of the existing changelog
+          cp CHANGELOG.md CHANGELOG.md.bak
           
-          # No need to run release-it again - we've already updated version and changelog
+          # Let release-it generate the changelog correctly
+          # Run release-it in a way that only updates the changelog but doesn't commit or push
+          npm run release -- $TYPE_ARG --ci --no-git.push --no-git.commit --no-git.tag --no-github --no-npm $BETA_ARG --no-increment
           
-          echo "Version and changelog updated successfully!"
-          
-          # Also run the build to ensure everything is up to date
+          # For clarity, build the project after changes
           npm run build
-      
+
       # Get the version from package.json (which should now be updated)
       - name: Get version
         id: package-version
