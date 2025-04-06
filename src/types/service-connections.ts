@@ -8,16 +8,17 @@ export type ConnectionFormat = string;
  * Provider-specific service connection configuration
  */
 export interface ProviderConnectionConfig {
-  // The format template to use for service references 
-  // (can use ${serviceName} as a variable)
+  // The format template to use for service references
   serviceReferenceFormat?: ConnectionFormat;
   
   // Whether to use provider's native service reference mechanism
-  // instead of string replacement
   useProviderNativeReferences?: boolean;
   
   // What type of native implementation to use
   implementationType?: 'blueprint-reference' | 'service-discovery';
+  
+  // Name of the service transformer function to use (e.g., 'digitalOcean')
+  serviceNameTransformer?: string;
 }
 
 /**
