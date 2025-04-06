@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.21.2](https://github.com/deploystackio/docker-to-iac/compare/v1.21.1...v1.21.2) (2025-04-06)
+
+### Bug Fixes
+* **service-connections:** add service name transformation support for DigitalOcean ([24844fc](https://github.com/deploystackio/docker-to-iac/commit/24844fc8b229a864134ed52ff08c379ae49cb246))
+
 ## [1.21.1](https://github.com/deploystackio/docker-to-iac/compare/v1.21.0...v1.21.1) (2025-03-31)
 ### Chores
 
