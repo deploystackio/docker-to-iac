@@ -8,14 +8,12 @@ import { ProviderConnectionConfig } from '../types/service-connections';
 export const providerConnectionConfigs: Record<string, ProviderConnectionConfig> = {
   // Render.com - using blueprint fromService syntax
   'RND': {
-    // Uses Render Blueprint's fromService capability
     useProviderNativeReferences: true,
     implementationType: 'blueprint-reference'
   },
   
-  // DigitalOcean App Platform - simple service name
+  // DigitalOcean App Platform - simple service name with transformation
   'DOP': {
-    // DigitalOcean uses simple service names for internal communication
-    serviceReferenceFormat: '${serviceName}'
+    serviceNameTransformer: 'digitalOcean'
   }
 };

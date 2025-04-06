@@ -4,6 +4,7 @@ import {
   ResolvedServiceConnection,
   ProviderConnectionConfig
 } from '../types/service-connections';
+import { getServiceNameTransformer } from './serviceNameTransformers';
 
 /**
  * Replace service references in environment variable values based on provider configuration
@@ -33,30 +34,37 @@ export function resolveServiceConnections(
       toService,
       variables: {}
     };
-    
+
     // Process each environment variable that references the target service
     for (const varName of environmentVariables) {
-      if (varName in serviceEnv) {
-        const originalValue = serviceEnv[varName];
-        let transformedValue = originalValue;
-        
-        // For providers that don't use native service references
-        if (!providerConfig.useProviderNativeReferences) {
-          // Replace exact service name with the provider-specific format
-          const serviceNamePattern = new RegExp(`\\b${toService}\\b`, 'g');
-          const replacementValue = providerConfig.serviceReferenceFormat?.replace('${serviceName}', toService) || toService;
+      const matchingVarNames = Object.keys(serviceEnv).filter(envKey => 
+        envKey === varName || envKey.includes(varName)
+      );
+      
+      if (matchingVarNames.length > 0) {
+        for (const matchedVarName of matchingVarNames) {
+          const originalValue = serviceEnv[matchedVarName];
+          let transformedValue = originalValue;
           
-          transformedValue = transformedValue.replace(serviceNamePattern, replacementValue);
+          if (!providerConfig.useProviderNativeReferences) {
+            // Get the appropriate transformer function
+            const transformerFn = getServiceNameTransformer(providerConfig.serviceNameTransformer);
+            
+            // Transform the service name
+            const transformedServiceName = transformerFn(toService);
+            
+            // Use the transformed name
+            transformedValue = transformedServiceName;
+            
+            // Update the environment variable
+            config.services[fromService].environment[matchedVarName] = transformedValue;
+          }
           
-          // Update the environment variable in the source service
-          config.services[fromService].environment[varName] = transformedValue;
+          resolvedConnection.variables[matchedVarName] = {
+            originalValue,
+            transformedValue
+          };
         }
-        
-        // Store the original and transformed values
-        resolvedConnection.variables[varName] = {
-          originalValue,
-          transformedValue
-        };
       }
     }
     
