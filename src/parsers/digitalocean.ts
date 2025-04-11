@@ -93,6 +93,7 @@ class DigitalOceanParser extends BaseParser {
       if (config.serviceConnections) {
         for (const connection of config.serviceConnections) {
           if (connection.fromService === serviceName) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             for (const [varName, varInfo] of Object.entries(connection.variables)) {
               // Find the environment variable index
               const envIndex = baseService.envs.findIndex(env => env.key === varName);

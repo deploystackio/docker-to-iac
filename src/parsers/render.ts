@@ -141,6 +141,7 @@ class RenderParser extends BaseParser {
         // Then add service connection variables with proper Render syntax
         for (const connection of config.serviceConnections) {
           if (connection.fromService === serviceName) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             for (const [varName, varInfo] of Object.entries(connection.variables)) {
               // Check if the target is a database service
               if (databaseServiceMap.has(connection.toService)) {
