@@ -31,6 +31,9 @@ export class RunCommandParser implements SourceParser {
 
     // Parse the arguments
     let i = 2; // Skip 'docker' and 'run'
+    let imageFound = false;
+    const commandParts: string[] = [];
+    
     while (i < parts.length) {
       const arg = parts[i];
 
@@ -63,15 +66,26 @@ export class RunCommandParser implements SourceParser {
             break;
 
           default:
-            if (!arg.startsWith('-')) {
-              config.image = parseDockerImage(arg);
+            // Skip other options
+            if (arg.startsWith('--')) {
+              i++; // Skip the value of the option if it exists
             }
         }
-      } else {
+      } else if (!imageFound) {
+        // First non-option argument is the image
         config.image = parseDockerImage(arg);
+        imageFound = true;
+      } else {
+        // Any arguments after the image are part of the command
+        commandParts.push(arg);
       }
       
       i++;
+    }
+    
+    // Join the command parts if any were found
+    if (commandParts.length > 0) {
+      config.command = commandParts.join(' ');
     }
 
     if (environmentOptions) {
@@ -120,8 +134,6 @@ export class RunCommandParser implements SourceParser {
         'default': config
       }
     };
-    
-
   }
 
   validate(content: string): boolean {
@@ -145,7 +157,6 @@ export class RunCommandParser implements SourceParser {
     for (let i = 0; i < command.length; i++) {
       const char = command[i];
       
-
       if (char === '\'' || char === '"') {
         inQuotes = !inQuotes;
         continue;
