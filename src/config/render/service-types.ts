@@ -2,6 +2,7 @@ interface RenderServiceTypeConfig {
   type: string;
   description: string;
   versions: string;
+  isManaged?: boolean;
 }
 
 interface RenderServiceTypesConfig {
@@ -23,12 +24,18 @@ export const renderServiceTypesConfig: RenderServiceTypesConfig = {
       versions: '*'
     },
     'docker.io/library/postgres': {
-      type: 'pserv',
-      description: 'PostgreSQL database service - requires private service type due to TCP protocol',
-      versions: '*'
+      type: 'database',
+      description: 'PostgreSQL database - creates a managed database in databases section',
+      versions: '*',
+      isManaged: true
+    },
+    'docker.io/library/redis': {
+      type: 'redis',
+      description: 'Redis database - creates a keyvalue service with type: redis',
+      versions: '*',
+      isManaged: true
     }
   }
 };
 
-// Export types for use in other files
 export type { RenderServiceTypeConfig, RenderServiceTypesConfig };

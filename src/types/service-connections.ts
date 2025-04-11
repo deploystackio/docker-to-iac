@@ -33,6 +33,9 @@ export interface ServiceConnectionMapping {
   
   // Environment variable names that contain service references
   environmentVariables: string[];
+  
+  // What property to reference (default could be 'hostport' for services or 'connectionString' for databases)
+  property?: string;
 }
 
 /**

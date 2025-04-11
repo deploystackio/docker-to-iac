@@ -23,13 +23,26 @@ export interface ContainerConfig {
   environment: { [key: string]: string };
   command?: string;
   restart?: string;
+  envVars?: Array<{
+    key: string;
+    value?: string;
+    fromService?: {
+      name: string;
+      type: string;
+      property: string;
+    };
+    fromDatabase?: {
+      name: string;
+      property: string;
+    };
+  }>;
 }
 
 export interface ApplicationConfig {
   services: {
     [key: string]: ContainerConfig;
   };
-  serviceConnections?: ResolvedServiceConnection[]; // Add this line
+  serviceConnections?: ResolvedServiceConnection[];
 }
 
 export interface FileOutput {

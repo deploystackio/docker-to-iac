@@ -9,6 +9,7 @@ import { createSourceParser } from './sources/factory';
 import { parseEnvFile } from './utils/parseEnvFile';
 import { resolveServiceConnections } from './utils/resolveServiceConnections';
 import { providerConnectionConfigs } from './config/service-connections';
+import { generateDatabaseServiceConnections } from './utils/detectDatabaseEnvVars';
 
 // Store for generated environment variables
 const generatedEnvVars = new Map<string, Record<string, Record<string, string>>>();
@@ -96,23 +97,32 @@ function translate(content: string, options: TranslateOptions): TranslationResul
       persistenceKey: options.persistenceKey
     });
 
-    // Process service connections if provided
+    // Process service connections if provided, or auto-detect them
     let resolvedServiceConnections;
-    if (options.serviceConnections && providerConnectionConfigs[providerAbbreviation]) {
+    
+    if (providerConnectionConfigs[providerAbbreviation]) {
       // Get the provider-specific connection configuration
       const providerConnectionConfig = providerConnectionConfigs[providerAbbreviation];
       
-      // Resolve service connections based on provider config
-      resolvedServiceConnections = resolveServiceConnections(
-        containerConfig,
-        options.serviceConnections,
-        providerConnectionConfig
-      );
+      // If no service connections provided, try to auto-detect database connections
+      const serviceConnections = options.serviceConnections || {
+        mappings: generateDatabaseServiceConnections(containerConfig)
+      };
       
-      // Add service connections to the container config
-      // to be accessed by parsers that use native reference mechanisms
-      if (resolvedServiceConnections) {
-        containerConfig.serviceConnections = resolvedServiceConnections;
+      // Only proceed if we have mappings
+      if (serviceConnections.mappings.length > 0) {
+        // Resolve service connections based on provider config
+        resolvedServiceConnections = resolveServiceConnections(
+          containerConfig,
+          serviceConnections,
+          providerConnectionConfig
+        );
+        
+        // Add service connections to the container config
+        // to be accessed by parsers that use native reference mechanisms
+        if (resolvedServiceConnections) {
+          containerConfig.serviceConnections = resolvedServiceConnections;
+        }
       }
     }
 

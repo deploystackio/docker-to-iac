@@ -5,6 +5,7 @@ import { parseCommand } from '../utils/parseCommand';
 import { digitalOceanParserServiceName } from '../utils/digitalOceanParserServiceName';
 import { normalizeDigitalOceanImageInfo } from '../utils/normalizeDigitalOceanImageInfo';
 import { getDigitalOceanDatabaseType } from '../utils/getDigitalOceanDatabaseType';
+import { isDigitalOceanManagedDatabase } from '../utils/isDigitalOceanManagedDatabase';
 
 const defaultParserConfig: ParserConfig = {
   files: [
@@ -36,9 +37,34 @@ class DigitalOceanParser extends BaseParser {
 
   parseFiles(config: ApplicationConfig): { [path: string]: FileOutput } {
     const services: Array<any> = [];
+    const databases: Array<any> = [];
+    const databaseServiceMap = new Map<string, string>();
     let isFirstService = true;
 
+    // First pass: identify database services that should be managed databases
     for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
+      if (isDigitalOceanManagedDatabase(serviceConfig.image)) {
+        // Create a database entry
+        const dbName = digitalOceanParserServiceName(`${serviceName}-db`);
+        
+        // Track the mapping between service name and database name
+        databaseServiceMap.set(serviceName, dbName);
+        
+        // Get database config
+        const dbConfig = getDigitalOceanDatabaseType(serviceConfig.image);
+        
+        // Create database config object with proper typing
+        const dbEntry: any = {
+          name: dbName,
+          engine: dbConfig?.engine || 'PG' // Default to PostgreSQL if unknown
+        };
+        
+        databases.push(dbEntry);
+        
+        // Skip creating a service for this database
+        continue;
+      }
+
       const dockerImageInfo = serviceConfig.image;
       const databaseConfig = getDigitalOceanDatabaseType(dockerImageInfo);
       const normalizedImage = normalizeDigitalOceanImageInfo(dockerImageInfo);
@@ -57,12 +83,65 @@ class DigitalOceanParser extends BaseParser {
         envs: Object.entries(serviceConfig.environment)
           .map(([key, value]) => ({
             key,
-            value: value.toString()
+            value: value.toString(),
+            scope: 'RUN_TIME'
           }))
       };
 
-      if (databaseConfig) {
-        // Database/TCP service configuration
+      // Check for database references in environment variables
+      for (let i = 0; i < baseService.envs.length; i++) {
+        const env = baseService.envs[i];
+        
+        // Look for database URLs with format postgresql://username:password@hostname:port/database
+        const dbUrlMatch = env.value.match(/postgresql:\/\/.*:.*@(.*?):(.*?)\/(.*)/);
+        if (dbUrlMatch) {
+          const targetServiceName = dbUrlMatch[1];
+          
+          // Check if the referenced hostname is a known database service
+          if (databaseServiceMap.has(targetServiceName)) {
+            // Update the env var to use the database reference
+            baseService.envs[i] = {
+              key: env.key,
+              value: `\${${databaseServiceMap.get(targetServiceName)}.DATABASE_URL}`,
+              scope: 'RUN_TIME'
+            };
+          }
+        }
+      }
+
+      // Process connections
+      if (config.serviceConnections) {
+        for (const connection of config.serviceConnections) {
+          if (connection.fromService === serviceName) {
+            for (const [varName] of Object.entries(connection.variables)) {
+              // Find the environment variable
+              const envIndex = baseService.envs.findIndex(env => env.key === varName);
+              
+              // Check if target service is a database
+              if (databaseServiceMap.has(connection.toService)) {
+                if (envIndex !== -1) {
+                  // Replace the existing variable with a database reference
+                  baseService.envs[envIndex] = {
+                    key: varName,
+                    value: `\${${databaseServiceMap.get(connection.toService)}.DATABASE_URL}`,
+                    scope: 'RUN_TIME'
+                  };
+                } else {
+                  // Add a new variable with the database reference
+                  baseService.envs.push({
+                    key: varName,
+                    value: `\${${databaseServiceMap.get(connection.toService)}.DATABASE_URL}`,
+                    scope: 'RUN_TIME'
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (databaseConfig && !isDigitalOceanManagedDatabase(dockerImageInfo)) {
+        // Non-managed database/TCP service configuration
         services.push({
           ...baseService,
           health_check: {
@@ -96,13 +175,18 @@ class DigitalOceanParser extends BaseParser {
       }
     }
 
-    const digitalOceanConfig = {
+    const digitalOceanConfig: any = {
       spec: {
         name: 'deploystack',
         region: defaultParserConfig.region,
         services
       }
     };
+
+    // Add databases section if we have any
+    if (databases.length > 0) {
+      digitalOceanConfig.spec.databases = databases;
+    }
 
     return {
       '.do/deploy.template.yaml': {
