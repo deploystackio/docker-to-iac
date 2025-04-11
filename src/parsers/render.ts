@@ -34,6 +34,7 @@ class RenderParser extends BaseParser {
     const keyvalueServices: Array<any> = [];
     const databaseServiceMap = new Map<string, string>();
 
+    // First pass: Identify database services and register them
     for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
       const imageUrl = getImageUrl(constructImageString(serviceConfig.image));
       
@@ -75,23 +76,39 @@ class RenderParser extends BaseParser {
         continue;
       }
 
+      // Non-database services will be processed in the second pass
+    }
+
+    // Second pass: Process regular services with database connections
+    for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
+      // Skip database services that have already been processed
+      if (databaseServiceMap.has(serviceName)) {
+        continue;
+      }
+
       const ports = new Set<number>();
       
       if (serviceConfig.ports) {
         serviceConfig.ports.forEach(portMapping => {
-          const parsedPort = parsePort(`${portMapping.host}:${portMapping.container}`);
-          if (parsedPort) {
-            ports.add(parsedPort);
+          if (typeof portMapping === 'object' && portMapping !== null) {
+            ports.add(portMapping.container);
+          } else {
+            const parsedPort = parsePort(portMapping);
+            if (parsedPort) {
+              ports.add(parsedPort);
+            }
           }
         });
       }
 
+      // Start with base environment variables
       const environmentVariables = { ...serviceConfig.environment };
 
       if (ports.size > 0) {
         environmentVariables['PORT'] = Array.from(ports)[0].toString();
       }
 
+      // Prepare the basic service definition
       const service: any = {
         name: serviceName,
         type: getRenderServiceType(serviceConfig.image),
@@ -100,111 +117,77 @@ class RenderParser extends BaseParser {
         startCommand: parseCommand(serviceConfig.command),
         plan: defaultParserConfig.subscriptionName,
         region: defaultParserConfig.region,
-        envVars: Object.entries(environmentVariables).map(([key, value]) => ({
-          key,
-          value: value.toString()
-        }))
+        envVars: []
       };
 
-      // Process any service connections for Render Blueprint
+      // Process service connections - this is provider specific logic
       if (config.serviceConnections) {
+        // First, add all regular environment variables except those in service connections
+        for (const [key, value] of Object.entries(environmentVariables)) {
+          // Skip variables that will be handled by service connections
+          const isHandledByConnection = config.serviceConnections.some(conn => 
+            conn.fromService === serviceName && 
+            Object.keys(conn.variables).includes(key)
+          );
+
+          if (!isHandledByConnection) {
+            service.envVars.push({
+              key,
+              value: value.toString()
+            });
+          }
+        }
+
+        // Then add service connection variables with proper Render syntax
         for (const connection of config.serviceConnections) {
           if (connection.fromService === serviceName) {
-
-            for (const [varName] of Object.entries(connection.variables)) {
-              // Define the type for the env parameter explicitly
-              const index = service.envVars.findIndex((env: { key: string, value?: string }) => env.key === varName);
-              
-              // Remove existing env var if found
-              if (index > -1) {
-                service.envVars.splice(index, 1);
-              }
-              
-              // Check if target service is a database
+            for (const [varName, varInfo] of Object.entries(connection.variables)) {
+              // Check if the target is a database service
               if (databaseServiceMap.has(connection.toService)) {
-                const targetService = databaseServiceMap.get(connection.toService);
+                const targetServiceName = databaseServiceMap.get(connection.toService);
                 const targetImageUrl = getImageUrl(constructImageString(config.services[connection.toService].image));
                 
-                // Check if PostgreSQL (use fromDatabase) or Redis (use fromService)
+                // Different handling based on database type
                 if (targetImageUrl.includes('postgres')) {
-                  // Add using Render Blueprint fromDatabase syntax for PostgreSQL
+                  // PostgreSQL uses fromDatabase
                   service.envVars.push({
                     key: varName,
                     fromDatabase: {
-                      name: targetService,  // This is already the database name with -db suffix
-                      property: 'connectionString'
+                      name: targetServiceName, // This is the database name with -db suffix
+                      property: connection.property || 'connectionString'
                     }
                   });
                 } else if (targetImageUrl.includes('redis')) {
-                  // Add using Render Blueprint fromService syntax for Redis
+                  // Redis uses fromService with type: redis
                   service.envVars.push({
                     key: varName,
                     fromService: {
-                      name: targetService,
+                      name: targetServiceName,
                       type: 'redis',
-                      property: 'connectionString'  // Redis connection property
+                      property: connection.property || 'connectionString'
                     }
                   });
                 }
               } else {
-                // Regular service connection with Render Blueprint fromService syntax
+                // Regular service connection
                 service.envVars.push({
                   key: varName,
                   fromService: {
                     name: connection.toService,
                     type: getRenderServiceType(config.services[connection.toService].image),
-                    property: 'hostport' // Default to hostport for most connections
+                    property: connection.property || 'hostport'
                   }
                 });
               }
             }
           }
         }
-      }
-
-      // Add database connection environment variables
-      for (const [key, value] of Object.entries(environmentVariables)) {
-        if (typeof value === 'string') {
-          // Look for database URLs with format postgresql://username:password@hostname:port/database
-          const dbUrlMatch = value.match(/postgresql:\/\/.*:.*@(.*?):(.*?)\/(.*)/);
-          if (dbUrlMatch) {
-            const targetServiceName = dbUrlMatch[1];
-            
-            // Check if the referenced hostname is a known database service
-            if (databaseServiceMap.has(targetServiceName)) {
-              const targetService = databaseServiceMap.get(targetServiceName);
-              const targetImageUrl = getImageUrl(constructImageString(config.services[targetServiceName].image));
-              
-              // Find and remove the original env var
-              const index = service.envVars.findIndex((env: { key: string }) => env.key === key);
-              if (index > -1) {
-                service.envVars.splice(index, 1);
-              }
-              
-              // Check if PostgreSQL or Redis
-              if (targetImageUrl.includes('postgres')) {
-                // Add using Render Blueprint fromDatabase syntax for PostgreSQL
-                service.envVars.push({
-                  key,
-                  fromDatabase: {
-                    name: targetService,
-                    property: 'connectionString'
-                  }
-                });
-              } else if (targetImageUrl.includes('redis')) {
-                // Add using Render Blueprint fromService syntax for Redis
-                service.envVars.push({
-                  key,
-                  fromService: {
-                    name: targetService,
-                    type: 'redis',
-                    property: 'connectionString'
-                  }
-                });
-              }
-            }
-          }
-        }
+      } else {
+        // No service connections, just add all environment variables
+        service.envVars = Object.entries(environmentVariables).map(([key, value]) => ({
+          key,
+          value: value.toString()
+        }));
       }
 
       // Add disk configuration if volumes are present

@@ -66,6 +66,9 @@ export interface ResolvedServiceConnection {
   // Target service being referenced
   toService: string;
   
+  // Which property to use for the connection (hostport, connectionString, etc)
+  property?: string;
+  
   // Environment variables that were transformed
   variables: {
     [key: string]: ResolvedConnectionVariable;

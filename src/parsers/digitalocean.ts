@@ -69,6 +69,7 @@ class DigitalOceanParser extends BaseParser {
       const databaseConfig = getDigitalOceanDatabaseType(dockerImageInfo);
       const normalizedImage = normalizeDigitalOceanImageInfo(dockerImageInfo);
 
+      // Prepare base service configuration
       const baseService = {
         name: digitalOceanParserServiceName(serviceName),
         image: {
@@ -88,49 +89,41 @@ class DigitalOceanParser extends BaseParser {
           }))
       };
 
-      // Check for database references in environment variables
-      for (let i = 0; i < baseService.envs.length; i++) {
-        const env = baseService.envs[i];
-        
-        // Look for database URLs with format postgresql://username:password@hostname:port/database
-        const dbUrlMatch = env.value.match(/postgresql:\/\/.*:.*@(.*?):(.*?)\/(.*)/);
-        if (dbUrlMatch) {
-          const targetServiceName = dbUrlMatch[1];
-          
-          // Check if the referenced hostname is a known database service
-          if (databaseServiceMap.has(targetServiceName)) {
-            // Update the env var to use the database reference
-            baseService.envs[i] = {
-              key: env.key,
-              value: `\${${databaseServiceMap.get(targetServiceName)}.DATABASE_URL}`,
-              scope: 'RUN_TIME'
-            };
-          }
-        }
-      }
-
-      // Process connections
+      // Process service connections - this is provider specific logic
       if (config.serviceConnections) {
         for (const connection of config.serviceConnections) {
           if (connection.fromService === serviceName) {
-            for (const [varName] of Object.entries(connection.variables)) {
-              // Find the environment variable
+            for (const [varName, varInfo] of Object.entries(connection.variables)) {
+              // Find the environment variable index
               const envIndex = baseService.envs.findIndex(env => env.key === varName);
               
-              // Check if target service is a database
+              // Check if target service is a managed database
               if (databaseServiceMap.has(connection.toService)) {
+                const dbServiceName = databaseServiceMap.get(connection.toService)!;
+                const transformedValue = `\${${dbServiceName}.DATABASE_URL}`;
+
                 if (envIndex !== -1) {
-                  // Replace the existing variable with a database reference
-                  baseService.envs[envIndex] = {
-                    key: varName,
-                    value: `\${${databaseServiceMap.get(connection.toService)}.DATABASE_URL}`,
-                    scope: 'RUN_TIME'
-                  };
+                  // Update existing variable
+                  baseService.envs[envIndex].value = transformedValue;
                 } else {
-                  // Add a new variable with the database reference
+                  // Add new variable
                   baseService.envs.push({
                     key: varName,
-                    value: `\${${databaseServiceMap.get(connection.toService)}.DATABASE_URL}`,
+                    value: transformedValue,
+                    scope: 'RUN_TIME'
+                  });
+                }
+              } else {
+                // Regular service connection - not typically used in DigitalOcean but included for completeness
+                const targetServiceName = digitalOceanParserServiceName(connection.toService);
+                const transformedValue = `\${${targetServiceName}.PRIVATE_URL}`;
+                
+                if (envIndex !== -1) {
+                  baseService.envs[envIndex].value = transformedValue;
+                } else {
+                  baseService.envs.push({
+                    key: varName,
+                    value: transformedValue,
                     scope: 'RUN_TIME'
                   });
                 }

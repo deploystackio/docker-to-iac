@@ -8,7 +8,6 @@ import digitalOceanParserInstance from './parsers/digitalocean';
 import { createSourceParser } from './sources/factory';
 import { parseEnvFile } from './utils/parseEnvFile';
 import { resolveServiceConnections } from './utils/resolveServiceConnections';
-import { providerConnectionConfigs } from './config/service-connections';
 import { generateDatabaseServiceConnections } from './utils/detectDatabaseEnvVars';
 
 // Store for generated environment variables
@@ -88,41 +87,38 @@ function translate(content: string, options: TranslateOptions): TranslationResul
       throw new Error(`Unsupported target language: ${options.target}`);
     }
 
-    // Get provider abbreviation for service connection config lookup
-    const providerAbbreviation = parser.getInfo().languageAbbreviation;
-
     const containerConfig = getProcessedConfig(content, options.source, {
       envGeneration: options.environmentVariableGeneration,
       envVariables: options.environmentVariables,
       persistenceKey: options.persistenceKey
     });
 
-    // Process service connections if provided, or auto-detect them
+    // Process service connections if provided
     let resolvedServiceConnections;
     
-    if (providerConnectionConfigs[providerAbbreviation]) {
-      // Get the provider-specific connection configuration
-      const providerConnectionConfig = providerConnectionConfigs[providerAbbreviation];
+    if (options.serviceConnections && options.serviceConnections.mappings.length > 0) {
+      // Use the simplified service connection resolver - no provider-specific transformations
+      resolvedServiceConnections = resolveServiceConnections(
+        containerConfig,
+        options.serviceConnections
+      );
       
-      // If no service connections provided, try to auto-detect database connections
-      const serviceConnections = options.serviceConnections || {
-        mappings: generateDatabaseServiceConnections(containerConfig)
-      };
+      // Add service connections to the container config for parsers to use
+      containerConfig.serviceConnections = resolvedServiceConnections;
+    } else if (options.target.toLowerCase() !== 'cfn') {
+      // Auto-detect database connections if not AWS CloudFormation
+      // (CloudFormation doesn't support direct service-to-service references)
+      const autoDetectedMappings = generateDatabaseServiceConnections(containerConfig);
       
-      // Only proceed if we have mappings
-      if (serviceConnections.mappings.length > 0) {
-        // Resolve service connections based on provider config
+      if (autoDetectedMappings.length > 0) {
+        // Process auto-detected connections
         resolvedServiceConnections = resolveServiceConnections(
           containerConfig,
-          serviceConnections,
-          providerConnectionConfig
+          { mappings: autoDetectedMappings }
         );
         
-        // Add service connections to the container config
-        // to be accessed by parsers that use native reference mechanisms
-        if (resolvedServiceConnections) {
-          containerConfig.serviceConnections = resolvedServiceConnections;
-        }
+        // Add to container config
+        containerConfig.serviceConnections = resolvedServiceConnections;
       }
     }
 
