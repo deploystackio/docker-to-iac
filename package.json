@@ -1,6 +1,6 @@
 {
   "name": "@deploystack/docker-to-iac",
-  "version": "1.21.2",
+  "version": "1.21.3",
   "main": "dist/src/index.js",
   "scripts": {
     "pretest": "rm -rf test/output/docker-compose test/output/docker-run",

@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.21.3](https://github.com/deploystackio/docker-to-iac/compare/v1.21.2...v1.21.3) (2025-04-11)
+### Chores
+
+* chore: bump @eslint/js from 9.23.0 to 9.24.0 [9ebdc18]
+* chore: bump @types/node from 22.13.14 to 22.14.0 [8942a46]
+* chore: bump @typescript-eslint/parser from 8.28.0 to 8.29.0 [28ad47f]
+* chore: bump @typescript-eslint/eslint-plugin from 8.28.0 to 8.29.0 [8132e03]
+* chore: bump eslint from 9.23.0 to 9.24.0 [9b69589]
+
+
+
+### Bug Fixes
+* **run-command-parser:** improve argument parsing for docker run commands ([dd8f479](https://github.com/deploystackio/docker-to-iac/commit/dd8f4796eeb41f061584f8f1aed01da9148216c1))
+
 ## [1.21.2](https://github.com/deploystackio/docker-to-iac/compare/v1.21.1...v1.21.2) (2025-04-06)
 
 ### Bug Fixes
