@@ -2,6 +2,7 @@ interface DatabaseConfig {
   engine: string;
   description: string;
   portNumber: number;
+  isManaged?: boolean;
 }
 
 interface DigitalOceanDatabaseConfig {
@@ -24,12 +25,13 @@ export const digitalOceanDatabaseConfig: DigitalOceanDatabaseConfig = {
     },
     'docker.io/library/postgres': {
       engine: 'PG',
-      description: 'PostgreSQL database service - requires managed database service due to TCP protocol',
-      portNumber: 5432
+      description: 'PostgreSQL database service - creates a managed database instance',
+      portNumber: 5432,
+      isManaged: true
     },
     'docker.io/library/redis': {
       engine: 'REDIS',
-      description: 'Redis database service - requires managed database service due to TCP protocol',
+      description: 'Redis database service - creates a managed database instance',
       portNumber: 6379
     },
     'docker.io/library/mongodb': {

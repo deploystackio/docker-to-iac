@@ -5,6 +5,7 @@ import { constructImageString } from '../utils/constructImageString';
 import { parsePort } from '../utils/parsePort';
 import { parseCommand } from '../utils/parseCommand';
 import { getRenderServiceType } from '../utils/getRenderServiceType';
+import { isRenderDatabaseService } from '../utils/isRenderDatabaseService';
 
 const defaultParserConfig: ParserConfig = {
   files: [
@@ -29,25 +30,85 @@ class RenderParser extends BaseParser {
   // New multi-file implementation
   parseFiles(config: ApplicationConfig): { [path: string]: FileOutput } {
     const services: Array<any> = [];
+    const databases: Array<any> = [];
+    const keyvalueServices: Array<any> = [];
+    const databaseServiceMap = new Map<string, string>();
 
+    // First pass: Identify database services and register them
     for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
+      const imageUrl = getImageUrl(constructImageString(serviceConfig.image));
+      
+      // Check if PostgreSQL - should go into databases section
+      if (isRenderDatabaseService(serviceConfig.image) && imageUrl.includes('postgres')) {
+        // Create a database instead of a service
+        const dbName = this.sanitizeName(`${serviceName}-db`);
+        
+        // Track the mapping between service name and database name
+        databaseServiceMap.set(serviceName, dbName);
+        
+        databases.push({
+          name: dbName,
+          plan: defaultParserConfig.subscriptionName
+        });
+        
+        continue;
+      }
+      
+      // Check if Redis - should go into services section as type: redis
+      if (isRenderDatabaseService(serviceConfig.image) && imageUrl.includes('redis')) {
+        const redisName = this.sanitizeName(serviceName);
+        
+        // Track the mapping between service name and Redis service name
+        databaseServiceMap.set(serviceName, redisName);
+        
+        keyvalueServices.push({
+          type: 'redis',
+          name: redisName,
+          plan: 'free', // Redis free plan - there is no starter for Redis.
+          ipAllowList: [
+            {
+              source: '0.0.0.0/0',
+              description: 'everywhere'
+            }
+          ]
+        });
+
+        continue;
+      }
+
+      // Non-database services will be processed in the second pass
+    }
+
+    // Second pass: Process regular services with database connections
+    for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
+      // Skip database services that have already been processed
+      if (databaseServiceMap.has(serviceName)) {
+        continue;
+      }
+
       const ports = new Set<number>();
       
       if (serviceConfig.ports) {
         serviceConfig.ports.forEach(portMapping => {
-          const parsedPort = parsePort(`${portMapping.host}:${portMapping.container}`);
-          if (parsedPort) {
-            ports.add(parsedPort);
+          if (typeof portMapping === 'object' && portMapping !== null) {
+            ports.add(portMapping.container);
+          } else {
+            const parsedPort = parsePort(portMapping);
+            if (parsedPort) {
+              ports.add(parsedPort);
+            }
           }
         });
       }
 
+      // Start with base environment variables
       const environmentVariables = { ...serviceConfig.environment };
 
       if (ports.size > 0) {
         environmentVariables['PORT'] = Array.from(ports)[0].toString();
       }
 
+      // Prepare the basic service definition
       const service: any = {
         name: serviceName,
         type: getRenderServiceType(serviceConfig.image),
@@ -56,38 +117,78 @@ class RenderParser extends BaseParser {
         startCommand: parseCommand(serviceConfig.command),
         plan: defaultParserConfig.subscriptionName,
         region: defaultParserConfig.region,
-        envVars: Object.entries(environmentVariables).map(([key, value]) => ({
-          key,
-          value: value.toString()
-        }))
+        envVars: []
       };
 
-      // Process any service connections for Render Blueprint
+      // Process service connections - this is provider specific logic
       if (config.serviceConnections) {
+        // First, add all regular environment variables except those in service connections
+        for (const [key, value] of Object.entries(environmentVariables)) {
+          // Skip variables that will be handled by service connections
+          const isHandledByConnection = config.serviceConnections.some(conn => 
+            conn.fromService === serviceName && 
+            Object.keys(conn.variables).includes(key)
+          );
+
+          if (!isHandledByConnection) {
+            service.envVars.push({
+              key,
+              value: value.toString()
+            });
+          }
+        }
+
+        // Then add service connection variables with proper Render syntax
         for (const connection of config.serviceConnections) {
           if (connection.fromService === serviceName) {
-            // For each referenced variable
-            for (const [varName] of Object.entries(connection.variables)) {
-              // Define the type for the env parameter explicitly
-              const index = service.envVars.findIndex((env: { key: string, value?: string }) => env.key === varName);
-              
-              // Remove existing env var if found
-              if (index > -1) {
-                service.envVars.splice(index, 1);
-              }
-              
-              // Add using Render Blueprint fromService syntax
-              service.envVars.push({
-                key: varName,
-                fromService: {
-                  name: connection.toService,
-                  type: getRenderServiceType(config.services[connection.toService].image),
-                  property: 'hostport' // Default to hostport for most connections
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            for (const [varName, varInfo] of Object.entries(connection.variables)) {
+              // Check if the target is a database service
+              if (databaseServiceMap.has(connection.toService)) {
+                const targetServiceName = databaseServiceMap.get(connection.toService);
+                const targetImageUrl = getImageUrl(constructImageString(config.services[connection.toService].image));
+                
+                // Different handling based on database type
+                if (targetImageUrl.includes('postgres')) {
+                  // PostgreSQL uses fromDatabase
+                  service.envVars.push({
+                    key: varName,
+                    fromDatabase: {
+                      name: targetServiceName, // This is the database name with -db suffix
+                      property: connection.property || 'connectionString'
+                    }
+                  });
+                } else if (targetImageUrl.includes('redis')) {
+                  // Redis uses fromService with type: redis
+                  service.envVars.push({
+                    key: varName,
+                    fromService: {
+                      name: targetServiceName,
+                      type: 'redis',
+                      property: connection.property || 'connectionString'
+                    }
+                  });
                 }
-              });
+              } else {
+                // Regular service connection
+                service.envVars.push({
+                  key: varName,
+                  fromService: {
+                    name: connection.toService,
+                    type: getRenderServiceType(config.services[connection.toService].image),
+                    property: connection.property || 'hostport'
+                  }
+                });
+              }
             }
           }
         }
+      } else {
+        // No service connections, just add all environment variables
+        service.envVars = Object.entries(environmentVariables).map(([key, value]) => ({
+          key,
+          value: value.toString()
+        }));
       }
 
       // Add disk configuration if volumes are present
@@ -110,10 +211,15 @@ class RenderParser extends BaseParser {
       services.push(service);
     }
 
-    const renderConfig = {
-      services
+    const renderConfig: any = {
+      services: [...services, ...keyvalueServices]
     };
-    
+
+    // Add databases section if we have any
+    if (databases.length > 0) {
+      renderConfig.databases = databases;
+    }
+
     // Return object with a single file - convert to string
     return {
       'render.yaml': {
@@ -122,6 +228,14 @@ class RenderParser extends BaseParser {
         isMain: true
       }
     };
+  }
+
+  private sanitizeName(name: string): string {
+    // Sanitize the name to match Render's requirements
+    return name.toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
   }
 
   private generateDiskName(serviceName: string, mountPath: string): string {

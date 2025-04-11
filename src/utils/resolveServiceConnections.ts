@@ -1,18 +1,17 @@
 import { ApplicationConfig } from '../types/container-config';
 import { 
   ServiceConnectionsConfig, 
-  ResolvedServiceConnection,
-  ProviderConnectionConfig
+  ResolvedServiceConnection
 } from '../types/service-connections';
-import { getServiceNameTransformer } from './serviceNameTransformers';
 
 /**
- * Replace service references in environment variable values based on provider configuration
+ * Resolve service connections between components without provider-specific transformations
+ * This provides basic information about service connections that each parser can use
+ * to implement its own specific connection syntax
  */
 export function resolveServiceConnections(
   config: ApplicationConfig,
-  serviceConnections: ServiceConnectionsConfig,
-  providerConfig: ProviderConnectionConfig
+  serviceConnections: ServiceConnectionsConfig
 ): ResolvedServiceConnection[] {
   const resolvedConnections: ResolvedServiceConnection[] = [];
 
@@ -32,6 +31,7 @@ export function resolveServiceConnections(
     const resolvedConnection: ResolvedServiceConnection = {
       fromService,
       toService,
+      property: mapping.property || 'hostport', // Default property is hostport
       variables: {}
     };
 
@@ -44,25 +44,12 @@ export function resolveServiceConnections(
       if (matchingVarNames.length > 0) {
         for (const matchedVarName of matchingVarNames) {
           const originalValue = serviceEnv[matchedVarName];
-          let transformedValue = originalValue;
           
-          if (!providerConfig.useProviderNativeReferences) {
-            // Get the appropriate transformer function
-            const transformerFn = getServiceNameTransformer(providerConfig.serviceNameTransformer);
-            
-            // Transform the service name
-            const transformedServiceName = transformerFn(toService);
-            
-            // Use the transformed name
-            transformedValue = transformedServiceName;
-            
-            // Update the environment variable
-            config.services[fromService].environment[matchedVarName] = transformedValue;
-          }
-          
+          // Store the original value but don't transform it here
+          // Let each parser implement its own transformation
           resolvedConnection.variables[matchedVarName] = {
             originalValue,
-            transformedValue
+            transformedValue: originalValue // Initially the same, parsers will override this
           };
         }
       }
