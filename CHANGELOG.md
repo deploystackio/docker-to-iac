@@ -1,5 +1,13 @@
 # Changelog
 
+# [1.22.0](https://github.com/deploystackio/docker-to-iac/compare/v1.21.3...v1.22.0) (2025-04-11)
+
+### Bug Fixes
+* suppress eslint warnings for unused variables in service connection handling ([7a18378](https://github.com/deploystackio/docker-to-iac/commit/7a18378270870fdc4a9d1bb2c7b77ec0d8819d2c))
+
+### Features
+* enhance database and service connection handling for Render and DigitalOcean ([6063048](https://github.com/deploystackio/docker-to-iac/commit/6063048e5e0e028eeb0bbd7af30b50b22793b2a4))
+
 ## [1.21.3](https://github.com/deploystackio/docker-to-iac/compare/v1.21.2...v1.21.3) (2025-04-11)
 ### Chores
 
