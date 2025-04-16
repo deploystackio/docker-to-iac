@@ -70,6 +70,7 @@ describe('parsePort', () => {
       
       const result = parsePort(badPort);
       expect(result).toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       // If an error is thrown despite the try/catch in parsePort,
       // this test should fail

@@ -41,7 +41,7 @@ describe('getServiceNameTransformer', () => {
   test('should handle empty service name', () => {
     const transformer = getServiceNameTransformer('digitalOcean');
     
-    const result = transformer('');
+    transformer('');
     
     expect(digitalOceanParserServiceName).toHaveBeenCalledWith('');
   });
@@ -49,7 +49,7 @@ describe('getServiceNameTransformer', () => {
   test('should handle special characters in service name', () => {
     const transformer = getServiceNameTransformer('digitalOcean');
     
-    const result = transformer('my_service@special');
+    transformer('my_service@special');
     
     expect(digitalOceanParserServiceName).toHaveBeenCalledWith('my_service@special');
   });
