@@ -33,10 +33,11 @@
     "Apache-2.0",
     "Infrastructure as Code",
     "IaC",
-    "CI/CD"
+    "CI/CD",
+    "DeployStack"
   ],
   "license": "Apache-2.0",
-  "description": "Translate docker-compose file to Infrastructure as Code",
+  "description": "Translate docker run and docker compose file to Infrastructure as Code",
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.15.0",
