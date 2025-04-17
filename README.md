@@ -1,4 +1,7 @@
-# Docker-to-IaC
+<p align="center">
+  <img src=".assets/img/banner-docker-to-iac.webp" alt="DeployStack Docker-to-IAC" width="100%" />
+</p>
+
 
 A Node.js module that translates Docker configurations (Docker run commands and Docker Compose files) into cloud provider Infrastructure as Code templates.
 
