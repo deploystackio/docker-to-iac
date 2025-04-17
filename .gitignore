@@ -59,3 +59,5 @@ coverage/
 # Ignore all files in test/output except README.md
 test/output/*
 !test/output/README.md
+test/e2e/output/*
+!test/e2e/output/README.md

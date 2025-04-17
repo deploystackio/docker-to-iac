@@ -1,0 +1,7 @@
+docker run -d \
+  --name nginx \
+  -e ENV_VAR_1=\${VALUE_FOR_ENV_VAR_1} \
+  -e ENV_VAR_2=\${VALUE_FOR_ENV_VAR_2} \
+  -e ENV_VAR_3=\${VALUE_FOR_ENV_VAR_3:-default-value-deploystack} \
+  -v wwwdata:/var/lib/html \
+  nginx:latest
