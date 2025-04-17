@@ -169,7 +169,7 @@ async function runDockerRunTest1(): Promise<boolean> {
         
         // 2. Check for volume support
         // Note: DigitalOcean App Platform doesn't support direct volume mounts in the same way
-        const hasVolumeSupport = validateVolumeMounting(doYaml, 'default', '/var/lib/html');
+        validateVolumeMounting(doYaml, 'default', '/var/lib/html');
         console.log('✓ DigitalOcean volume check skipped (App Platform has different volume approach)');
         
         // 3. Check environment variables
