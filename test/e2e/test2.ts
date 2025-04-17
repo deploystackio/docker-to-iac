@@ -4,9 +4,9 @@ import { readFileSync, mkdirSync, existsSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import * as yaml from 'yaml';
 import { assertRenderYamlStructure } from './assertions/render';
-import {
-  validatePortEnvironmentVariable 
-} from './assertions/port-assertions';
+import { validatePortEnvironmentVariable } from './assertions/port-assertions';
+import { assertDigitalOceanYamlStructure, validateDatabaseService } from './assertions/digitalocean';
+import { validatePortMappingInDigitalOcean, validatePortEnvironmentVariable as validateDOPortEnvironmentVariable } from './assertions/do-port-assertions';
 
 // Constants for directories
 const DOCKER_RUN_DIR = join(__dirname, 'docker-run-files');
@@ -40,7 +40,7 @@ async function runDockerRunPortTest(): Promise<boolean> {
     // Test translation to Render
     console.log('Testing translation to Render...');
     
-    const translationResult = translate(command, {
+    const renderTranslationResult = translate(command, {
       source: 'run',
       target: 'RND',
       templateFormat: TemplateFormat.yaml
@@ -53,7 +53,7 @@ async function runDockerRunPortTest(): Promise<boolean> {
     }
 
     // Save all files with proper directory structure
-    Object.entries(translationResult.files).forEach(([path, fileData]) => {
+    Object.entries(renderTranslationResult.files).forEach(([path, fileData]) => {
       const fullPath = join(renderOutputDir, path);
       const dir = dirname(fullPath);
       
@@ -91,6 +91,70 @@ async function runDockerRunPortTest(): Promise<boolean> {
       testPassed = false;
       console.error('❌ Render YAML file not found');
     }
+
+    // Test translation to DigitalOcean
+    console.log('\nTesting translation to DigitalOcean...');
+    
+    const doTranslationResult = translate(command, {
+      source: 'run',
+      target: 'DOP',
+      templateFormat: TemplateFormat.yaml
+    });
+
+    // Create directory for DigitalOcean output
+    const doOutputDir = join(testOutputDir, 'dop');
+    if (!existsSync(doOutputDir)) {
+      mkdirSync(doOutputDir, { recursive: true });
+    }
+
+    // Save all files with proper directory structure
+    Object.entries(doTranslationResult.files).forEach(([path, fileData]) => {
+      const fullPath = join(doOutputDir, path);
+      const dir = dirname(fullPath);
+      
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      
+      writeFileSync(fullPath, fileData.content);
+      console.log(`✓ Created DigitalOcean output: ${path}`);
+    });
+
+    // Run assertions for DigitalOcean
+    const doYamlPath = join(doOutputDir, '.do/deploy.template.yaml');
+    if (existsSync(doYamlPath)) {
+      const doYaml = yaml.parse(readFileSync(doYamlPath, 'utf8'));
+      
+      try {
+        // 1. Validate YAML structure
+        assertDigitalOceanYamlStructure(doYaml);
+        console.log('✓ DigitalOcean YAML structure validation passed');
+        
+        // 2. Check for port mapping - service name may be different due to DO naming requirements
+        const serviceName = doYaml.spec.services[0].name;
+        
+        // In DigitalOcean, the http_port should be set to 8080
+        const portMappingValid = validatePortMappingInDigitalOcean(doYaml, serviceName, 8080);
+        if (portMappingValid) {
+          console.log('✓ DigitalOcean port mapping validation passed');
+        } else {
+          // Check if there's a PORT environment variable as a fallback
+          const portEnvValid = validateDOPortEnvironmentVariable(doYaml, serviceName, '8080');
+          if (portEnvValid) {
+            console.log('✓ DigitalOcean PORT environment variable validation passed');
+          } else {
+            testPassed = false;
+            console.error('❌ DigitalOcean port mapping validation failed');
+          }
+        }
+      } catch (error) {
+        testPassed = false;
+        console.error('❌ DigitalOcean YAML validation failed:', error);
+      }
+    } else {
+      testPassed = false;
+      console.error('❌ DigitalOcean YAML file not found');
+    }
   } catch (error) {
     testPassed = false;
     console.error('❌ Test execution error:', error);
@@ -121,7 +185,7 @@ async function runDockerComposePortTest(): Promise<boolean> {
 
     console.log('Testing Docker Compose translation to Render...');
     
-    const translationResult = translate(composeContent, {
+    const renderTranslationResult = translate(composeContent, {
       source: 'compose',
       target: 'RND',
       templateFormat: TemplateFormat.yaml
@@ -134,7 +198,7 @@ async function runDockerComposePortTest(): Promise<boolean> {
     }
 
     // Save all files with proper directory structure
-    Object.entries(translationResult.files).forEach(([path, fileData]) => {
+    Object.entries(renderTranslationResult.files).forEach(([path, fileData]) => {
       const fullPath = join(renderOutputDir, path);
       const dir = dirname(fullPath);
       
@@ -185,6 +249,110 @@ async function runDockerComposePortTest(): Promise<boolean> {
     } else {
       testPassed = false;
       console.error('❌ Render YAML file not found');
+    }
+
+    // Test translation to DigitalOcean
+    console.log('\nTesting Docker Compose translation to DigitalOcean...');
+    
+    const doTranslationResult = translate(composeContent, {
+      source: 'compose',
+      target: 'DOP',
+      templateFormat: TemplateFormat.yaml
+    });
+
+    // Create directory for DigitalOcean output
+    const doOutputDir = join(testOutputDir, 'dop');
+    if (!existsSync(doOutputDir)) {
+      mkdirSync(doOutputDir, { recursive: true });
+    }
+
+    // Save all files with proper directory structure
+    Object.entries(doTranslationResult.files).forEach(([path, fileData]) => {
+      const fullPath = join(doOutputDir, path);
+      const dir = dirname(fullPath);
+      
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      
+      writeFileSync(fullPath, fileData.content);
+      console.log(`✓ Created DigitalOcean output: ${path}`);
+    });
+
+    // Run assertions for DigitalOcean
+    const doYamlPath = join(doOutputDir, '.do/deploy.template.yaml');
+    if (existsSync(doYamlPath)) {
+      const doYaml = yaml.parse(readFileSync(doYamlPath, 'utf8'));
+      
+      try {
+        // 1. Validate YAML structure
+        assertDigitalOceanYamlStructure(doYaml);
+        console.log('✓ DigitalOcean YAML structure validation passed');
+        
+        // 2. Check for port mappings
+        // Find web service - may have normalized name
+        let webServiceName = '';
+        let apiServiceName = '';
+        
+        for (const service of doYaml.spec.services) {
+          if (service.image && service.image.repository && 
+              service.image.repository.toLowerCase().includes('nginx')) {
+            webServiceName = service.name;
+          } else if (service.image && service.image.repository && 
+                    service.image.repository.toLowerCase().includes('node')) {
+            apiServiceName = service.name;
+          }
+        }
+        
+        let portMappingsValid = true;
+        
+        if (!webServiceName) {
+          portMappingsValid = false;
+          console.error('❌ Web service not found in DigitalOcean YAML');
+        } else {
+          // Validate web service port (should be 80 or PORT env)
+          const webPortValid = validatePortMappingInDigitalOcean(doYaml, webServiceName, 80);
+          if (!webPortValid) {
+            portMappingsValid = false;
+            console.error('❌ Web service port mapping validation failed');
+          }
+        }
+        
+        if (!apiServiceName) {
+          portMappingsValid = false;
+          console.error('❌ API service not found in DigitalOcean YAML');
+        } else {
+          // Validate API service port (should be 8080)
+          const apiPortValid = validatePortMappingInDigitalOcean(doYaml, apiServiceName, 8080);
+          if (!apiPortValid) {
+            portMappingsValid = false;
+            console.error('❌ API service port mapping validation failed');
+          }
+        }
+        
+        if (portMappingsValid) {
+          console.log('✓ Multiple port mappings validation passed');
+        } else {
+          testPassed = false;
+          console.error('❌ Multiple port mappings validation failed');
+        }
+        
+        // 3. Check for database service - this should be in the databases section
+        const hasPostgresDb = validateDatabaseService(doYaml, 'PG');
+        
+        if (hasPostgresDb) {
+          console.log('✓ DigitalOcean database service validation passed');
+        } else {
+          testPassed = false;
+          console.error('❌ DigitalOcean database service validation failed');
+        }
+      } catch (error) {
+        testPassed = false;
+        console.error('❌ DigitalOcean YAML validation failed:', error);
+      }
+    } else {
+      testPassed = false;
+      console.error('❌ DigitalOcean YAML file not found');
     }
   } catch (error) {
     testPassed = false;

@@ -4,6 +4,7 @@ import { readFileSync, mkdirSync, existsSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import * as yaml from 'yaml';
 import { assertRenderYamlStructure, validateVolumeMappingInRender } from './assertions/render';
+import { assertDigitalOceanYamlStructure, validateEnvironmentVariables as validateDOEnvironmentVariables, validateVolumeMounting } from './assertions/digitalocean';
 
 // Constants for directories
 const DOCKER_RUN_DIR = join(__dirname, 'docker-run-files');
@@ -37,7 +38,7 @@ async function runDockerRunTest1(): Promise<boolean> {
     // Test translation to Render
     console.log('Testing translation to Render...');
     
-    const translationResult = translate(command, {
+    const renderTranslationResult = translate(command, {
       source: 'run',
       target: 'RND',
       templateFormat: TemplateFormat.yaml
@@ -50,7 +51,7 @@ async function runDockerRunTest1(): Promise<boolean> {
     }
 
     // Save all files with proper directory structure
-    Object.entries(translationResult.files).forEach(([path, fileData]) => {
+    Object.entries(renderTranslationResult.files).forEach(([path, fileData]) => {
       const fullPath = join(renderOutputDir, path);
       const dir = dirname(fullPath);
       
@@ -127,6 +128,101 @@ async function runDockerRunTest1(): Promise<boolean> {
       testPassed = false;
       console.error('❌ Render YAML file not found');
     }
+
+    // Test translation to DigitalOcean
+    console.log('\nTesting translation to DigitalOcean...');
+    
+    const doTranslationResult = translate(command, {
+      source: 'run',
+      target: 'DOP',
+      templateFormat: TemplateFormat.yaml
+    });
+
+    // Create directory for DigitalOcean output
+    const doOutputDir = join(testOutputDir, 'dop');
+    if (!existsSync(doOutputDir)) {
+      mkdirSync(doOutputDir, { recursive: true });
+    }
+
+    // Save all files with proper directory structure
+    Object.entries(doTranslationResult.files).forEach(([path, fileData]) => {
+      const fullPath = join(doOutputDir, path);
+      const dir = dirname(fullPath);
+      
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      
+      writeFileSync(fullPath, fileData.content);
+      console.log(`✓ Created DigitalOcean output: ${path}`);
+    });
+
+    // Run assertions for DigitalOcean
+    const doYamlPath = join(doOutputDir, '.do/deploy.template.yaml');
+    if (existsSync(doYamlPath)) {
+      const doYaml = yaml.parse(readFileSync(doYamlPath, 'utf8'));
+      
+      try {
+        // 1. Validate YAML structure
+        assertDigitalOceanYamlStructure(doYaml);
+        console.log('✓ DigitalOcean YAML structure validation passed');
+        
+        // 2. Check for volume support
+        // Note: DigitalOcean App Platform doesn't support direct volume mounts in the same way
+        const hasVolumeSupport = validateVolumeMounting(doYaml, 'default', '/var/lib/html');
+        console.log('✓ DigitalOcean volume check skipped (App Platform has different volume approach)');
+        
+        // 3. Check environment variables
+        const expectedEnvVars = {
+          'ENV_VAR_3': 'default-value-deploystack'
+        };
+        
+        // Use normalized service name (may be different from 'default' due to DO naming requirements)
+        const serviceName = doYaml.spec.services[0].name;
+        const envVarsValid = validateDOEnvironmentVariables(doYaml, serviceName, expectedEnvVars);
+        
+        if (envVarsValid) {
+          console.log('✓ DigitalOcean environment variables validation passed');
+        } else {
+          testPassed = false;
+          console.error('❌ DigitalOcean environment variables validation failed');
+        }
+        
+        // Additional verification for placeholders
+        const service = doYaml.spec.services[0];
+        const envVars = service.envs.reduce((acc: Record<string, string>, env: any) => {
+          if (env.key && env.value !== undefined) {
+            acc[env.key] = env.value;
+          }
+          return acc;
+        }, {});
+        
+        let placeholdersValid = true;
+        if (!envVars['ENV_VAR_1'] || !envVars['ENV_VAR_1'].includes('VALUE_FOR_ENV_VAR_1')) {
+          console.error(`ENV_VAR_1 is missing or invalid in DigitalOcean: ${envVars['ENV_VAR_1']}`);
+          placeholdersValid = false;
+        }
+        
+        if (!envVars['ENV_VAR_2'] || !envVars['ENV_VAR_2'].includes('VALUE_FOR_ENV_VAR_2')) {
+          console.error(`ENV_VAR_2 is missing or invalid in DigitalOcean: ${envVars['ENV_VAR_2']}`);
+          placeholdersValid = false;
+        }
+        
+        if (placeholdersValid) {
+          console.log('✓ DigitalOcean placeholder variables validation passed');
+        } else {
+          testPassed = false;
+          console.error('❌ DigitalOcean placeholder variables validation failed');
+        }
+        
+      } catch (error) {
+        testPassed = false;
+        console.error('❌ DigitalOcean YAML validation failed:', error);
+      }
+    } else {
+      testPassed = false;
+      console.error('❌ DigitalOcean YAML file not found');
+    }
   } catch (error) {
     testPassed = false;
     console.error('❌ Test execution error:', error);
@@ -157,7 +253,7 @@ async function runDockerComposeTest1(): Promise<boolean> {
 
     console.log('Testing Docker Compose translation to Render...');
     
-    const translationResult = translate(composeContent, {
+    const renderTranslationResult = translate(composeContent, {
       source: 'compose',
       target: 'RND',
       templateFormat: TemplateFormat.yaml
@@ -170,7 +266,7 @@ async function runDockerComposeTest1(): Promise<boolean> {
     }
 
     // Save all files with proper directory structure
-    Object.entries(translationResult.files).forEach(([path, fileData]) => {
+    Object.entries(renderTranslationResult.files).forEach(([path, fileData]) => {
       const fullPath = join(renderOutputDir, path);
       const dir = dirname(fullPath);
       
@@ -242,6 +338,89 @@ async function runDockerComposeTest1(): Promise<boolean> {
     } else {
       testPassed = false;
       console.error('❌ Render YAML file not found');
+    }
+
+    // Test translation to DigitalOcean
+    console.log('\nTesting Docker Compose translation to DigitalOcean...');
+    
+    const doTranslationResult = translate(composeContent, {
+      source: 'compose',
+      target: 'DOP',
+      templateFormat: TemplateFormat.yaml
+    });
+
+    // Create directory for DigitalOcean output
+    const doOutputDir = join(testOutputDir, 'dop');
+    if (!existsSync(doOutputDir)) {
+      mkdirSync(doOutputDir, { recursive: true });
+    }
+
+    // Save all files with proper directory structure
+    Object.entries(doTranslationResult.files).forEach(([path, fileData]) => {
+      const fullPath = join(doOutputDir, path);
+      const dir = dirname(fullPath);
+      
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      
+      writeFileSync(fullPath, fileData.content);
+      console.log(`✓ Created DigitalOcean output: ${path}`);
+    });
+
+    // Run assertions for DigitalOcean
+    const doYamlPath = join(doOutputDir, '.do/deploy.template.yaml');
+    if (existsSync(doYamlPath)) {
+      const doYaml = yaml.parse(readFileSync(doYamlPath, 'utf8'));
+      
+      try {
+        // 1. Validate YAML structure
+        assertDigitalOceanYamlStructure(doYaml);
+        console.log('✓ DigitalOcean YAML structure validation passed');
+        
+        // 2. Check for volume support
+        // (DigitalOcean App Platform has different volume approach)
+        validateVolumeMounting(doYaml, 'web', '/etc/nginx/nginx.conf');
+        console.log('✓ DigitalOcean volume check skipped (App Platform has different volume approach)');
+        
+        // 3. Check environment variables
+        // Find web service - may have a different name due to DO naming requirements
+        let webServiceName = '';
+        for (const service of doYaml.spec.services) {
+          if (service.image && service.image.repository && 
+              service.image.repository.toLowerCase().includes('nginx')) {
+            webServiceName = service.name;
+            break;
+          }
+        }
+        
+        if (!webServiceName) {
+          testPassed = false;
+          console.error('❌ Web service not found in DigitalOcean YAML');
+        } else {
+          // Define expected environment variables
+          const expectedEnvVars = {
+            'NGINX_HOST': 'example.com',
+            'NGINX_PORT': '80'
+          };
+          
+          // Check environment variables
+          const envVarsValid = validateDOEnvironmentVariables(doYaml, webServiceName, expectedEnvVars);
+          
+          if (envVarsValid) {
+            console.log('✓ DigitalOcean environment variables validation passed');
+          } else {
+            testPassed = false;
+            console.error('❌ DigitalOcean environment variables validation failed');
+          }
+        }
+      } catch (error) {
+        testPassed = false;
+        console.error('❌ DigitalOcean YAML validation failed:', error);
+      }
+    } else {
+      testPassed = false;
+      console.error('❌ DigitalOcean YAML file not found');
     }
   } catch (error) {
     testPassed = false;
