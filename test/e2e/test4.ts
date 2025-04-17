@@ -1,24 +1,21 @@
 import { translate } from '../../src/index';
 import { TemplateFormat } from '../../src/parsers/base-parser';
 import { readFileSync, mkdirSync, existsSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import * as yaml from 'yaml';
-// Schema validation removed due to complexity with Ajv and meta-schema references
-// import Ajv, { SchemaObject } from 'ajv';
-// import addFormats from 'ajv-formats';
-// import fetch from 'node-fetch'; // Use node-fetch v2
+import { validateRenderSchema } from './utils/render-validator';
 
 // Constants for directories
 const DOCKER_RUN_DIR = join(__dirname, 'docker-run-files');
 const DOCKER_COMPOSE_DIR = join(__dirname, 'docker-compose-files');
 const OUTPUT_DIR = join(__dirname, 'output');
-// const RENDER_SCHEMA_URL = 'https://render.com/schema/render.yaml.json'; // Schema validation removed
+const RENDER_SCHEMA_URL = 'https://render.com/schema/render.yaml.json';
 
 /**
- * Run the Docker Run test (Schema validation removed).
+ * Run the Docker Run test with schema validation.
  */
 async function runDockerRunTest4(): Promise<boolean> {
-  console.log('\n--- Running Docker Run Test 4 (Render Translation Only) ---');
+  console.log('\n--- Running Docker Run Test 4 (Render Translation with Schema Validation) ---');
 
   // Create output directory for this subtest
   const testOutputDir = join(OUTPUT_DIR, 'test4', 'docker-run', 'rnd');
@@ -58,13 +55,16 @@ async function runDockerRunTest4(): Promise<boolean> {
     writeFileSync(renderYamlPath, renderFileData.content);
     console.log(`✓ Created Render output: render.yaml`);
 
-    // Schema validation removed
-    console.log('✓ Schema validation skipped.');
-    // const renderYaml = yaml.parse(renderFileData.content);
-    // const isValid = await validateRenderSchema(renderYaml);
-    // if (!isValid) {
-    //   testPassed = false;
-    // }
+    // Validate against Render.com schema
+    const renderYaml = yaml.parse(renderFileData.content);
+    console.log('Validating Render YAML against official schema...');
+    const isValid = await validateRenderSchema(renderYaml, RENDER_SCHEMA_URL);
+    if (!isValid) {
+      testPassed = false;
+      console.error('❌ Schema validation failed for Docker Run test');
+    } else {
+      console.log('✅ Schema validation passed for Docker Run test');
+    }
 
   } catch (error) {
     testPassed = false;
@@ -76,10 +76,10 @@ async function runDockerRunTest4(): Promise<boolean> {
 }
 
 /**
- * Run the Docker Compose test (Schema validation removed).
+ * Run the Docker Compose test with schema validation.
  */
 async function runDockerComposeTest4(): Promise<boolean> {
-  console.log('\n--- Running Docker Compose Test 4 (Render Translation Only) ---');
+  console.log('\n--- Running Docker Compose Test 4 (Render Translation with Schema Validation) ---');
 
   // Create output directory for this subtest
   const testOutputDir = join(OUTPUT_DIR, 'test4', 'docker-compose', 'rnd');
@@ -113,13 +113,16 @@ async function runDockerComposeTest4(): Promise<boolean> {
     writeFileSync(renderYamlPath, renderFileData.content);
     console.log(`✓ Created Render output: render.yaml`);
 
-    // Schema validation removed
-    console.log('✓ Schema validation skipped.');
-    // const renderYaml = yaml.parse(renderFileData.content);
-    // const isValid = await validateRenderSchema(renderYaml);
-    // if (!isValid) {
-    //   testPassed = false;
-    // }
+    // Validate against Render.com schema
+    const renderYaml = yaml.parse(renderFileData.content);
+    console.log('Validating Render YAML against official schema...');
+    const isValid = await validateRenderSchema(renderYaml, RENDER_SCHEMA_URL);
+    if (!isValid) {
+      testPassed = false;
+      console.error('❌ Schema validation failed for Docker Compose test');
+    } else {
+      console.log('✅ Schema validation passed for Docker Compose test');
+    }
 
   } catch (error) {
     testPassed = false;
@@ -131,10 +134,10 @@ async function runDockerComposeTest4(): Promise<boolean> {
 }
 
 /**
- * Run the test for test4 (Schema validation removed).
+ * Run the test for test4 with schema validation.
  */
 export async function runTest4(): Promise<boolean> {
-  console.log('\n=== Running Test 4: Render Translation Only ===');
+  console.log('\n=== Running Test 4: Render Translation with Schema Validation ===');
 
   // Create output directory for this test
   const testOutputDir = join(OUTPUT_DIR, 'test4');
