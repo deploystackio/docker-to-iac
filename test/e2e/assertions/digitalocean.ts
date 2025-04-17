@@ -173,10 +173,10 @@ export function validateVolumeMounting(
     return false;
   }
   
-  // For now, we'll pass this test automatically with a warning
+  // For now, we'll pass this test automatically with a info
   // since DigitalOcean doesn't have direct volume mounting in App Spec
-  console.warn(`Note: DigitalOcean App Platform doesn't support direct volume mounts like ${mountPath}.`);
-  console.warn('Volume tests are skipped for DigitalOcean as they would need a different approach.');
+  console.info(`Note: DigitalOcean App Platform doesn't support direct volume mounts like ${mountPath}.`);
+  console.info('Volume tests are skipped for DigitalOcean as they would need a different approach.');
   
   return true;
 }
