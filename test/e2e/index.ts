@@ -2,6 +2,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { runTest1 } from './test1';
 import { runTest2 } from './test2';
+import { runTest3 } from './test3';
 
 // Constants for directories
 const OUTPUT_DIR = join(__dirname, 'output');
@@ -33,9 +34,9 @@ async function runAllTests() {
   const test2Passed = await runTest2();
   testResults.push({ testName: 'Test 2: Port Mappings', passed: test2Passed });
 
-  // Add more tests here as they are created
-  // e.g. const test3Passed = await runTest3();
-  // testResults.push({ testName: 'Test 3 Description', passed: test3Passed });
+  // Run Test 3: Environment Variable Substitution
+  const test3Passed = await runTest3();
+  testResults.push({ testName: 'Test 3: Environment Variable Substitution', passed: test3Passed });
 
   // Print summary
   console.log('\n=== Test Summary ===');

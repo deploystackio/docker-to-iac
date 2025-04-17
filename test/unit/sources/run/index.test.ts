@@ -324,7 +324,6 @@ describe('RunCommandParser', () => {
       // Access private method via type casting
       const splitCommand = (parser as any).splitCommand.bind(parser);
       
-      // eslint-disable-next-line quotes
       const result = splitCommand("docker run -e 'FOO=BAR BAZ' image");
       
       expect(result).toEqual(['docker', 'run', '-e', 'FOO=BAR BAZ', 'image']);

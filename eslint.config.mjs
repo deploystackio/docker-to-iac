@@ -42,7 +42,7 @@ export default [{
 
     rules: {
         "indent": ["error", 2, { "SwitchCase": 1 }],
-        quotes: ["error", "single"],
+        quotes: ["error", "single", { "avoidEscape": true, "allowTemplateLiterals": true }],
         semi: ["error", "always"],
         "no-unused-vars": "off",
         "@typescript-eslint/no-unused-vars": ["error"],
