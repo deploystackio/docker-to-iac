@@ -3,7 +3,7 @@ import { join } from 'path';
 import { runTest1 } from './test1';
 import { runTest2 } from './test2';
 import { runTest3 } from './test3';
-import { runTest4 } from './test4';
+// import { runTest4 } from './test4';
 
 // Constants for directories
 const OUTPUT_DIR = join(__dirname, 'output');
