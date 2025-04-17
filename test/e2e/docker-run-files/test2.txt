@@ -1,0 +1,8 @@
+docker run -d \
+  --name express-app \
+  -p 3000:8080 \
+  -p 9229:9229 \
+  -e NODE_ENV=production \
+  -e PORT=8080 \
+  node:16-alpine \
+  node server.js
