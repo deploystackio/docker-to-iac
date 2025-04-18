@@ -1,6 +1,0 @@
-docker run \
---rm \
--p 8080:8080 \
--v $HOME/.config/dagu:/home/dagu/.config/dagu \
--v $HOME/.config/dagu/.local/share:/home/dagu/.local/share \
-ghcr.io/dagu-org/dagu:latest

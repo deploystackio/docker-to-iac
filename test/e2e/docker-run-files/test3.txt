@@ -1,0 +1,8 @@
+docker run -d \
+  --name nginx-test \
+  -p 8080:80 \
+  -e NGINX_HOST=${NGINX_HOST} \
+  -e NGINX_PORT=${NGINX_PORT:-80} \
+  -e DEBUG_MODE=${DEBUG_MODE:-false} \
+  -v www-data:/usr/share/nginx/html \
+  nginx:alpine

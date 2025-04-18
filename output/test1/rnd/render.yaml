@@ -1,0 +1,20 @@
+services:
+  - name: default
+    type: web
+    runtime: image
+    image:
+      url: docker.io/library/nginx:latest
+    startCommand: ""
+    plan: starter
+    region: oregon
+    envVars:
+      - key: ENV_VAR_1
+        value: \${VALUE_FOR_ENV_VAR_1}
+      - key: ENV_VAR_2
+        value: \${VALUE_FOR_ENV_VAR_2}
+      - key: ENV_VAR_3
+        value: default-value-deploystack
+    disk:
+      name: default-var-lib-html
+      mountPath: /var/lib/html
+      sizeGB: 10

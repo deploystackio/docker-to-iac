@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      NGINX_HOST: example.com
+  
+  api:
+    image: node:16-alpine
+    ports:
+      - "3000:8080"
+      - "9229:9229" 
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+    command: node server.js
+  
+  db:
+    image: postgres:14
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: example
+      POSTGRES_USER: postgres
+      POSTGRES_DB: myapp
