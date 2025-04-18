@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 

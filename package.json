@@ -52,7 +52,6 @@
     "ajv-formats": "^3.0.1",
     "eslint": "^9.15.0",
     "globals": "^16.0.0",
-    "node-fetch": "^2.7.0",
     "release-it": "^18.1.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2",

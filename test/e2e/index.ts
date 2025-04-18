@@ -3,7 +3,7 @@ import { join } from 'path';
 import { runTest1 } from './test1';
 import { runTest2 } from './test2';
 import { runTest3 } from './test3';
-// import { runTest4 } from './test4';
+import { runTest4 } from './test4';
 
 // Constants for directories
 const OUTPUT_DIR = join(__dirname, 'output');
@@ -40,8 +40,8 @@ async function runAllTests() {
   testResults.push({ testName: 'Test 3: Environment Variable Substitution', passed: test3Passed });
 
   // Run Test 4: Render Translation Only (Schema validation removed)
-  // const test4Passed = await runTest4();
-  // testResults.push({ testName: 'Test 4: Render Translation Only', passed: test4Passed });
+  const test4Passed = await runTest4();
+  testResults.push({ testName: 'Test 4: Render Translation Only', passed: test4Passed });
 
   // Print summary
   console.log('\n=== Test Summary ===');
