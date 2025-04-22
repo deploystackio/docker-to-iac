@@ -40,7 +40,7 @@
   "description": "Translate docker run and docker compose file to Infrastructure as Code",
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
-    "@eslint/js": "^9.15.0",
+    "@eslint/js": "^9.25.1",
     "@release-it/conventional-changelog": "^10.0.1",
     "@types/node": "^22.7.4",
     "@types/node-fetch": "^2.6.12",
