@@ -48,7 +48,7 @@ class RenderParser extends BaseParser {
         
         databases.push({
           name: dbName,
-          plan: defaultParserConfig.subscriptionName
+          plan: 'free', // PostgreSQL free plan - there is no starter for PostgreSQL.
         });
         
         continue;
