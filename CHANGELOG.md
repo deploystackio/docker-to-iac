@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.22.1](https://github.com/deploystackio/docker-to-iac/compare/v1.22.0...v1.22.1) (2025-04-22)
+### Chores
+
+* chore: bump release-it from 18.1.2 to 19.0.1 [9486472]
+* chore: bump @typescript-eslint/eslint-plugin from 8.29.1 to 8.30.1 [9c4f786]
+* chore: bump @eslint/js from 9.24.0 to 9.25.0 [c3a6143]
+* chore: bump @typescript-eslint/parser from 8.29.1 to 8.30.1 [98fe066]
+* chore: bump eslint from 9.24.0 to 9.25.0 [07fff95]
+* chore: bump @release-it/conventional-changelog from 10.0.0 to 10.0.1 [9e9a045]
+* chore: bump @types/node from 22.14.0 to 22.14.1 [afc65b9]
+* chore: bump @typescript-eslint/parser from 8.29.0 to 8.29.1 [5f3673c]
+* chore: bump @typescript-eslint/eslint-plugin from 8.29.0 to 8.29.1 [7210b17]
+
+
+
+### Bug Fixes
+* add missing comma in tsconfig.json types array ([31e081f](https://github.com/deploystackio/docker-to-iac/commit/31e081f3a408522fdbcdf1207e42a8c9befbcac5))
+* **assertions:** change warning to info for volume mounting validation in DigitalOcean ([c95f348](https://github.com/deploystackio/docker-to-iac/commit/c95f348c68c60389efe720f28b556c35313ee7ac))
+* **dependencies:** remove node-fetch from package.json and package-lock.json ([26a3da8](https://github.com/deploystackio/docker-to-iac/commit/26a3da806c03394081923f380ab45f24a4b4effb))
+* **package:** update description for clarity; add missing keyword in keywords array ([e10c0c0](https://github.com/deploystackio/docker-to-iac/commit/e10c0c08b64f36eda7394d8ff2dc166636678096))
+* **render:** update database plan to 'free' for PostgreSQL configuration ([cc5e1e5](https://github.com/deploystackio/docker-to-iac/commit/cc5e1e5dca6255447bd93dc4d2165bff8e9356ec))
+* **tests:** comment out import for runTest4 to prevent execution ([188c1ea](https://github.com/deploystackio/docker-to-iac/commit/188c1ea33b919f99820d91dabea97f729988c784))
+* **tests:** remove redundant volume support validation in Docker Run test for DigitalOcean ([03b4e3d](https://github.com/deploystackio/docker-to-iac/commit/03b4e3dbf9e20f716dcb427ae9749fc2133904d2))
+
+### Features
+* **tests:** add comprehensive tests for Docker Run and Docker Compose port mappings; include validation for environment variables and YAML structure ([dc5fc2e](https://github.com/deploystackio/docker-to-iac/commit/dc5fc2e025e22a6f4aa6cdfb809306a32d0f2766))
+* **tests:** add comprehensive unit tests for various utility functions including database service connections and image normalization ([13beba7](https://github.com/deploystackio/docker-to-iac/commit/13beba738ad3ca43b00b161aee173e9136a8e4fd))
+* **tests:** add DigitalOcean translation tests for Docker Run and Docker Compose; validate environment variables and port mappings ([68f004b](https://github.com/deploystackio/docker-to-iac/commit/68f004bda9a86c1d6722804b9ab553c599a336ec))
+* **tests:** add Test 3 for environment variable substitution using Docker Run and Docker Compose; include comprehensive validation for environment variables and YAML structure ([64ff2b8](https://github.com/deploystackio/docker-to-iac/commit/64ff2b80524d73a83f81aca18f894f7a74a069e9))
+* **tests:** add Test 4 for Render Translation Only; include Docker Run and Docker Compose tests with output validation ([cc47f06](https://github.com/deploystackio/docker-to-iac/commit/cc47f06086f7ae13ba3f41e48b60e0cc001f7935))
+* **tests:** add unit tests for connection properties, database types, and render service types configurations ([937c277](https://github.com/deploystackio/docker-to-iac/commit/937c27779b99b649e7556e2b8af8b6ed8ae83575))
+* **tests:** add unit tests for various utility functions and integrate Vitest for testing framework ([378c349](https://github.com/deploystackio/docker-to-iac/commit/378c349ebb475fdd30458c1bbb5154216011cb33))
+* **tests:** enhance CI workflow and add unit tests for RunCommandParser and Docker Compose validation ([5b2633d](https://github.com/deploystackio/docker-to-iac/commit/5b2633df52602c41902c431378b3ad254a02b4c9))
+* **tests:** reintroduce schema validation for Docker Run and Docker Compose tests; add render schema validator utility ([ff0c45c](https://github.com/deploystackio/docker-to-iac/commit/ff0c45c1a61608ea31fabf74c6785f3467b2bc5e))
+
 # [1.22.0](https://github.com/deploystackio/docker-to-iac/compare/v1.21.3...v1.22.0) (2025-04-11)
 
 ### Bug Fixes
