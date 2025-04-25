@@ -116,6 +116,9 @@ jobs:
           git commit -m "chore(release): prepare release v$NEW_VERSION"
           git push origin $BRANCH_NAME
           
+          # Store branch name for future jobs
+          echo "RELEASE_BRANCH=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          
           # Output the PR creation URL to the logs
           echo "::notice::✅ Branch created and pushed: $BRANCH_NAME"
           echo "::notice::⚠️ You must manually create a PR from this branch at this URL:"
@@ -138,6 +141,8 @@ jobs:
   publish-release:
     if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
+    outputs:
+      release_branch: ${{ steps.extract-branch-name.outputs.branch_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -156,6 +161,14 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           
       - run: npm ci
+      
+      # Extract branch name from the PR head reference for cleanup later
+      - name: Extract branch name
+        id: extract-branch-name
+        run: |
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "Release branch name is: $BRANCH_NAME"
       
       # Create GitHub release tag
       - name: Create GitHub release tag
@@ -182,3 +195,26 @@ jobs:
         run: |
           # Publish the package to npm
           npm publish --access public
+
+  cleanup-branch:
+    needs: publish-release
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Delete release branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ needs.publish-release.outputs.release_branch }}
+        run: |
+          echo "Deleting branch: $BRANCH_NAME"
+          git push origin --delete $BRANCH_NAME
+          echo "::notice::🗑️ Release branch '$BRANCH_NAME' has been deleted"
+          
+          # Add to step summary
+          echo "# Release Branch Cleanup" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Successfully deleted the release branch: \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
