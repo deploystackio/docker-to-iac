@@ -308,6 +308,86 @@ describe('RunCommandParser', () => {
         tag: 'latest'
       });
     });
+
+    test('should handle standalone flags like --rm correctly', () => {
+      // We need to use mockImplementation instead of mockReturnValue
+      // to handle different calls to parseDockerImage with different arguments
+      const parseDockerImageMock = vi.spyOn(parseDockerImageModule, 'parseDockerImage');
+      
+      // Configure the mock to return the expected value when called with 'nginx'
+      parseDockerImageMock.mockImplementation((imageString) => {
+        if (imageString === 'nginx') {
+          return {
+            registry_type: RegistryType.DOCKER_HUB,
+            repository: 'nginx',
+            tag: 'latest'
+          };
+        }
+        // Default fallback
+        return {
+          registry_type: RegistryType.DOCKER_HUB,
+          repository: imageString,
+        };
+      });
+    
+      const result = parser.parse('docker run --rm nginx');
+      
+      // Verify that parseDockerImage was called with 'nginx'
+      expect(parseDockerImageMock).toHaveBeenCalledWith('nginx');
+      
+      // The --rm flag should be ignored but not affect image parsing
+      expect(result.services.default.image).toEqual({
+        registry_type: RegistryType.DOCKER_HUB,
+        repository: 'nginx',
+        tag: 'latest'
+      });
+    });
+
+    test('should correctly parse the portkeyai/gateway example', () => {
+      // Use mockImplementation for the specific case that was failing
+      const parseDockerImageMock = vi.spyOn(parseDockerImageModule, 'parseDockerImage');
+      
+      parseDockerImageMock.mockImplementation((imageString) => {
+        if (imageString === 'portkeyai/gateway:latest') {
+          return {
+            registry_type: RegistryType.DOCKER_HUB,
+            repository: 'portkeyai/gateway',
+            tag: 'latest'
+          };
+        }
+        // Default fallback
+        return {
+          registry_type: RegistryType.DOCKER_HUB,
+          repository: imageString,
+        };
+      });
+    
+      // Mock normalizePort
+      vi.spyOn(normalizePortModule, 'normalizePort').mockReturnValue({
+        host: 8787,
+        container: 8787
+      });
+    
+      const result = parser.parse('docker run --rm -p 8787:8787 portkeyai/gateway:latest');
+      
+      // Verify parseDockerImage was called with the correct image string
+      expect(parseDockerImageMock).toHaveBeenCalledWith('portkeyai/gateway:latest');
+      
+      // Check that the image and ports are correctly parsed
+      expect(result.services.default.image).toEqual({
+        registry_type: RegistryType.DOCKER_HUB,
+        repository: 'portkeyai/gateway',
+        tag: 'latest'
+      });
+      
+      expect(result.services.default.ports).toEqual([
+        { host: 8787, container: 8787 }
+      ]);
+      
+      // Command should be empty as there are no arguments after the image
+      expect(result.services.default.command).toBe('');
+    });
+
   });
 
   describe('utility functions', () => {
@@ -327,6 +407,15 @@ describe('RunCommandParser', () => {
       const result = splitCommand("docker run -e 'FOO=BAR BAZ' image");
       
       expect(result).toEqual(['docker', 'run', '-e', 'FOO=BAR BAZ', 'image']);
+    });
+    
+    test('splitCommand handles mixed quotes', () => {
+      // Access private method via type casting
+      const splitCommand = (parser as any).splitCommand.bind(parser);
+      
+      const result = splitCommand('docker run -e "FOO=\'BAR\'" -e \'BAZ="QUX"\' image');
+      
+      expect(result).toEqual(['docker', 'run', '-e', 'FOO=\'BAR\'', '-e', 'BAZ="QUX"', 'image']);
     });
   });
 });
