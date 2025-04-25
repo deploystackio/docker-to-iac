@@ -4,6 +4,7 @@ import { runTest1 } from './test1';
 import { runTest2 } from './test2';
 import { runTest3 } from './test3';
 import { runTest4 } from './test4';
+import { runTest5 } from './test5';
 
 // Constants for directories
 const OUTPUT_DIR = join(__dirname, 'output');
@@ -39,9 +40,13 @@ async function runAllTests() {
   const test3Passed = await runTest3();
   testResults.push({ testName: 'Test 3: Environment Variable Substitution', passed: test3Passed });
 
-  // Run Test 4: Render Translation Only (Schema validation removed)
+  // Run Test 4: Render Translation Only (Schema validation)
   const test4Passed = await runTest4();
   testResults.push({ testName: 'Test 4: Render Translation Only', passed: test4Passed });
+
+  // Run Test 5: Portkey Gateway Port and Image Verification
+  const test5Passed = await runTest5();
+  testResults.push({ testName: 'Test 5: Portkey Gateway Port and Image Verification', passed: test5Passed });
 
   // Print summary
   console.log('\n=== Test Summary ===');

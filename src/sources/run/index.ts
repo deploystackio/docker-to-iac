@@ -37,7 +37,9 @@ export class RunCommandParser implements SourceParser {
     while (i < parts.length) {
       const arg = parts[i];
 
-      if (arg.startsWith('-')) {
+      // If we haven't found the image yet and the argument starts with a dash,
+      // it's an option
+      if (!imageFound && arg.startsWith('-')) {
         switch (arg) {
           case '-p':
           case '--publish':
@@ -66,9 +68,12 @@ export class RunCommandParser implements SourceParser {
             break;
 
           default:
-            // Skip other options
-            if (arg.startsWith('--')) {
-              i++; // Skip the value of the option if it exists
+            // Some flags take arguments, some don't
+            if (arg === '--rm' || arg === '-d' || arg === '--detach') {
+              // These are standalone flags - don't skip anything
+            } else if (i + 1 < parts.length && !parts[i + 1].startsWith('-')) {
+              // This option likely has a value - skip it
+              i++;
             }
         }
       } else if (!imageFound) {
@@ -153,12 +158,15 @@ export class RunCommandParser implements SourceParser {
     const parts: string[] = [];
     let current = '';
     let inQuotes = false;
+    let quoteChar = '';
     
     for (let i = 0; i < command.length; i++) {
       const char = command[i];
       
-      if (char === '\'' || char === '"') {
+      if ((char === '\'' || char === '"') && (inQuotes === false || quoteChar === char)) {
         inQuotes = !inQuotes;
+        if (inQuotes) quoteChar = char;
+        else quoteChar = '';
         continue;
       }
       

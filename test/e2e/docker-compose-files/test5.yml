@@ -1,0 +1,6 @@
+version: '3'
+services:
+  portkey:
+    image: portkeyai/gateway:latest
+    ports:
+      - "8787:8787"
