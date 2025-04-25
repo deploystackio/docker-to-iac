@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.22.2](https://github.com/deploystackio/docker-to-iac/compare/v1.22.1...v1.22.2) (2025-04-25)
+
+### Features
+* add test for Portkey Gateway port and image verification; update RunCommandParser logic ([e6c4617](https://github.com/deploystackio/docker-to-iac/commit/e6c4617c73cec8ccc6f7c25bed8aecd99c520a7b))
+
 ## [1.22.1](https://github.com/deploystackio/docker-to-iac/compare/v1.22.0...v1.22.1) (2025-04-22)
 ### Chores
 
