@@ -348,88 +348,90 @@ class HelmParser extends BaseParser {
    */
   private generateDeploymentTemplate(): string {
     return `
+{{- range $key, $service := .Values.services }}
+{{- if $service.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "deploystack.fullname" . }}-{{ .key }}
+  name: {{ include "deploystack.fullname" $ }}-{{ $key }}
   labels:
-    {{- include "deploystack.labels" . | nindent 4 }}
-    app.kubernetes.io/component: {{ .key }}
+    {{- include "deploystack.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
+  {{- if not $service.autoscaling.enabled }}
+  replicas: {{ $service.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "deploystack.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: {{ .key }}
+      {{- include "deploystack.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $key }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- with $.Values.global.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "deploystack.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: {{ .key }}
+        {{- include "deploystack.selectorLabels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $key }}
     spec:
-      {{- with .Values.global.imagePullSecrets }}
+      {{- with $.Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
-        {{- toYaml .Values.global.podSecurityContext | nindent 8 }}
+        {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .key }}
+        - name: {{ $key }}
           securityContext:
-            {{- toYaml .Values.global.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if .Values.command }}
+            {{- toYaml $.Values.global.securityContext | nindent 12 }}
+          image: "{{ $service.image.repository }}:{{ $service.image.tag | default "latest" }}"
+          imagePullPolicy: {{ $service.image.pullPolicy }}
+          {{- if $service.command }}
           command:
-            {{- toYaml .Values.command | nindent 12 }}
+            {{- toYaml $service.command | nindent 12 }}
           {{- end }}
           ports:
-            {{- range .Values.service.ports }}
+            {{- range $service.service.ports }}
             - name: http-{{ .port }}
               containerPort: {{ .targetPort }}
               protocol: {{ .protocol }}
             {{- end }}
-          {{- if or .Values.environment.regular .Values.environment.sensitive }}
+          {{- if or $service.environment.regular $service.environment.sensitive }}
           env:
-            {{- range $key, $value := .Values.environment.regular }}
-            - name: {{ $key }}
+            {{- range $envKey, $envValue := $service.environment.regular }}
+            - name: {{ $envKey }}
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "deploystack.fullname" $ }}-{{ $.key }}-config
-                  key: {{ $key }}
+                  name: {{ include "deploystack.fullname" $ }}-{{ $key }}-config
+                  key: {{ $envKey }}
             {{- end }}
-            {{- range $key, $value := .Values.environment.sensitive }}
-            - name: {{ $key }}
+            {{- range $envKey, $envValue := $service.environment.sensitive }}
+            - name: {{ $envKey }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "deploystack.fullname" $ }}-{{ $.key }}-secret
-                  key: {{ $key }}
+                  name: {{ include "deploystack.fullname" $ }}-{{ $key }}-secret
+                  key: {{ $envKey }}
             {{- end }}
-            {{- if .Values.dependencies }}
-            {{- range .Values.dependencies }}
+            {{- if $service.dependencies }}
+            {{- range $service.dependencies }}
             {{- range $envKey, $envValue := .variables }}
             - name: {{ $envKey }}
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "deploystack.fullname" $ }}-{{ $.key }}-dependencies
+                  name: {{ include "deploystack.fullname" $ }}-{{ $key }}-dependencies
                   key: {{ $envKey }}
             {{- end }}
             {{- end }}
             {{- end }}
           {{- end }}
-          {{- with .Values.volumes }}
+          {{- with $service.volumes }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.volumes }}
+            {{- toYaml $service.resources | nindent 12 }}
+      {{- with $service.volumes }}
       volumes:
         {{- range . }}
         - name: {{ .name }}
@@ -437,33 +439,40 @@ spec:
             path: {{ .hostPath }}
         {{- end }}
       {{- end }}
+{{- end }}
+{{- end }}
 `;
   }
+  
 
   /**
    * Generates the Kubernetes Service template for Helm
    */
   private generateServiceTemplate(): string {
     return `
+{{- range $key, $service := .Values.services }}
+{{- if $service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "deploystack.fullname" . }}-{{ .key }}
+  name: {{ include "deploystack.fullname" $ }}-{{ $key }}
   labels:
-    {{- include "deploystack.labels" . | nindent 4 }}
-    app.kubernetes.io/component: {{ .key }}
+    {{- include "deploystack.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
 spec:
-  type: {{ .Values.service.type }}
+  type: {{ $service.service.type }}
   ports:
-    {{- range .Values.service.ports }}
+    {{- range $service.service.ports }}
     - port: {{ .port }}
       targetPort: {{ .targetPort }}
       protocol: {{ .protocol }}
       name: http-{{ .port }}
     {{- end }}
   selector:
-    {{- include "deploystack.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: {{ .key }}
+    {{- include "deploystack.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
+{{- end }}
+{{- end }}
 `;
   }
 
@@ -472,33 +481,38 @@ spec:
    */
   private generateConfigMapTemplate(): string {
     return `
-{{- if .Values.environment.regular }}
+{{- range $key, $service := .Values.services }}
+{{- if $service.enabled }}
+{{- if $service.environment.regular }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "deploystack.fullname" . }}-{{ .key }}-config
+  name: {{ include "deploystack.fullname" $ }}-{{ $key }}-config
   labels:
-    {{- include "deploystack.labels" . | nindent 4 }}
-    app.kubernetes.io/component: {{ .key }}
+    {{- include "deploystack.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
 data:
-  {{- toYaml .Values.environment.regular | nindent 2 }}
+  {{- toYaml $service.environment.regular | nindent 2 }}
 {{- end }}
 
-{{- if .Values.dependencies }}
+{{- if $service.dependencies }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "deploystack.fullname" . }}-{{ .key }}-dependencies
+  name: {{ include "deploystack.fullname" $ }}-{{ $key }}-dependencies
   labels:
-    {{- include "deploystack.labels" . | nindent 4 }}
-    app.kubernetes.io/component: {{ .key }}
+    {{- include "deploystack.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
 data:
-  {{- range .Values.dependencies }}
-  {{- range $key, $value := .variables }}
-  {{ $key }}: {{ include "deploystack.serviceReference" (dict "service" $.Values.services.(.service) "serviceKey" .service) }}
+  {{- range $service.dependencies }}
+  {{- $serviceName := .service }}
+  {{- range $envKey, $envValue := .variables }}
+  {{ $envKey }}: {{ include "deploystack.serviceReference" (dict "service" (index $.Values.services $serviceName) "serviceKey" $serviceName) }}
   {{- end }}
   {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
 `;
   }
@@ -508,19 +522,23 @@ data:
    */
   private generateSecretTemplate(): string {
     return `
-{{- if .Values.environment.sensitive }}
+{{- range $key, $service := .Values.services }}
+{{- if $service.enabled }}
+{{- if $service.environment.sensitive }}
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ include "deploystack.fullname" . }}-{{ .key }}-secret
+  name: {{ include "deploystack.fullname" $ }}-{{ $key }}-secret
   labels:
-    {{- include "deploystack.labels" . | nindent 4 }}
-    app.kubernetes.io/component: {{ .key }}
+    {{- include "deploystack.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
 type: Opaque
 data:
-  {{- range $key, $value := .Values.environment.sensitive }}
-  {{ $key }}: {{ $value | b64enc | quote }}
+  {{- range $envKey, $envValue := $service.environment.sensitive }}
+  {{ $envKey }}: {{ $envValue | b64enc | quote }}
   {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
 `;
   }
