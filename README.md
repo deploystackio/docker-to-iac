@@ -27,7 +27,6 @@ const dockerComposeContent = readFileSync('docker-compose.yml', 'utf8');
 const translatedConfig = translate(dockerComposeContent, {
   source: 'compose',
   target: 'CFN',
-  templateFormat: 'yaml'
 });
 
 writeFileSync('output-aws.yml', translatedConfig);
@@ -44,7 +43,6 @@ const dockerRunCommand = 'docker run -d -p 8080:80 nginx:latest';
 const translatedConfig = translate(dockerRunCommand, {
   source: 'run',
   target: 'CFN',
-  templateFormat: 'yaml'
 });
 
 writeFileSync('output-aws.yml', translatedConfig);
