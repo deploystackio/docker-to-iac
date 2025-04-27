@@ -240,15 +240,15 @@ class HelmParser extends BaseParser {
       }
 
       // Generate values for this service
-      values.services[serviceName] = {
+      const serviceValues: any = {
         enabled: true,
         replicaCount: 1,
         image: {
-          repository: getImageUrl(constructImageString(serviceConfig.image)),
+          // Pass false to includeTag parameter to get repository without the tag
+          repository: getImageUrl(constructImageString(serviceConfig.image), false),
           pullPolicy: 'IfNotPresent',
           tag: serviceConfig.image.tag || 'latest'
         },
-        command: parseCommand(serviceConfig.command)?.split(' ') || [],
         service: {
           type: 'ClusterIP',
           ports: Array.from(ports).map(port => ({
@@ -281,9 +281,15 @@ class HelmParser extends BaseParser {
         }))
       };
 
+      // Only add the command if it's not empty
+      const cmdString = parseCommand(serviceConfig.command);
+      if (cmdString) {
+        serviceValues.command = cmdString.split(' ');
+      }
+
       // Process service connections if provided
       if (config.serviceConnections) {
-        values.services[serviceName].dependencies = [];
+        serviceValues.dependencies = [];
         
         for (const connection of config.serviceConnections) {
           if (connection.fromService === serviceName) {
@@ -291,7 +297,7 @@ class HelmParser extends BaseParser {
             const targetService = connection.toService;
             const isTargetManagedDb = managedDatabases.has(targetService);
             
-            values.services[serviceName].dependencies.push({
+            serviceValues.dependencies.push({
               service: targetService,
               variables: connection.variables,
               isDatabaseDependency: isTargetManagedDb
@@ -299,6 +305,8 @@ class HelmParser extends BaseParser {
           }
         }
       }
+
+      values.services[serviceName] = serviceValues;
     }
 
     return values;
