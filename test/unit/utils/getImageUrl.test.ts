@@ -63,16 +63,43 @@ describe('getImageUrl', () => {
 
   test('should handle custom registry URLs', () => {
     (parseDockerImage as any).mockReturnValue({
-      registry_type: RegistryType.DOCKER_HUB,
-      registry: 'custom.registry.com',
+      registry_type: 'CUSTOM',
       repository: 'project/app',
       tag: 'latest'
     });
 
     const result = getImageUrl('custom.registry.com/project/app:latest');
     
-    // Based on the actual implementation, it formats as docker.io for DOCKER_HUB type
-    expect(result).toBe('docker.io/project/app:latest');
+    // For custom registries, the function should return the original string
+    expect(result).toBe('custom.registry.com/project/app:latest');
     expect(parseDockerImage).toHaveBeenCalledWith('custom.registry.com/project/app:latest');
+  });
+
+  test('should exclude tag from image URL when specified', () => {
+    (parseDockerImage as any).mockReturnValue({
+      registry_type: RegistryType.DOCKER_HUB,
+      repository: 'nginx',
+      tag: 'latest'
+    });
+
+    const result = getImageUrl('nginx:latest', false);
+    
+    expect(result).toBe('docker.io/library/nginx');
+    expect(parseDockerImage).toHaveBeenCalledWith('nginx:latest');
+  });
+
+  test('should exclude tag from custom registry URLs when specified', () => {
+    // This test specifically targets lines 25-28 which were uncovered
+    (parseDockerImage as any).mockReturnValue({
+      registry_type: 'CUSTOM',
+      repository: 'custom/image',
+      tag: 'v1.2.3'
+    });
+
+    const result = getImageUrl('custom.registry.com/custom/image:v1.2.3', false);
+    
+    // For custom registries with includeTag=false, it should return just the part before the colon
+    expect(result).toBe('custom.registry.com/custom/image');
+    expect(parseDockerImage).toHaveBeenCalledWith('custom.registry.com/custom/image:v1.2.3');
   });
 });
