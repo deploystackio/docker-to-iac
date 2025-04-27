@@ -5,6 +5,7 @@ import { EnvironmentVariableGenerationConfig } from './types/environment-config'
 import cloudFormationParserInstance from './parsers/aws-cloudformation';
 import renderParserInstance from './parsers/render';
 import digitalOceanParserInstance from './parsers/digitalocean';
+import helmParserInstance from './parsers/helm';
 import { createSourceParser } from './sources/factory';
 import { parseEnvFile } from './utils/parseEnvFile';
 import { resolveServiceConnections } from './utils/resolveServiceConnections';
@@ -17,6 +18,7 @@ const parsers: BaseParser[] = [
   cloudFormationParserInstance,
   renderParserInstance,
   digitalOceanParserInstance,
+  helmParserInstance,
 ];
 
 function getOrCreateEnvVars(

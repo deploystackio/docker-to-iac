@@ -46,8 +46,19 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Verify Helm Installation
+        run: helm version
+
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run All Tests
-        run: npm run test
+      - name: Run Unit Tests
+        run: npm run test:unit
+
+      - name: Run E2E Tests
+        run: npm run test:e2e
