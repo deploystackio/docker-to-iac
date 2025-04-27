@@ -1,5 +1,16 @@
 # Changelog
 
+# [1.23.0](https://github.com/deploystackio/docker-to-iac/compare/v1.22.2...v1.23.0) (2025-04-27)
+
+### Features
+* add Helm parser and database configuration support ([30eefa1](https://github.com/deploystackio/docker-to-iac/commit/30eefa1e7fc9293dc473dede87af6c4fb48253b3))
+* add unit tests for Helm database utilities and connection detection ([c57ab3b](https://github.com/deploystackio/docker-to-iac/commit/c57ab3b30aafa2b473c12ff433d45ad83ed67801))
+* added e2e test for helm lint - test6 ([8924428](https://github.com/deploystackio/docker-to-iac/commit/89244281fdb5f9b6e740ed383ba35659630a9a9b))
+* enhance HelmParser to support dynamic image URL generation and command handling ([e02dfcc](https://github.com/deploystackio/docker-to-iac/commit/e02dfcc9c87a283e49e5fbd1663dfdc9cedeacab))
+* enhance release process with branch name extraction and cleanup ([e0ca09a](https://github.com/deploystackio/docker-to-iac/commit/e0ca09abb475c1b3a23f9b81ba86ddce22d5a87e))
+* update getImageUrl.test.ts and added database-types test for helm ([45bf2f6](https://github.com/deploystackio/docker-to-iac/commit/45bf2f67342f1ee0041b1b889191d25a36e585cd))
+* update Helm templates to support multiple services with dynamic configuration ([fb7806b](https://github.com/deploystackio/docker-to-iac/commit/fb7806b14ccb4af535b4064de32c9cbcbc15a91a))
+
 ## [1.22.2](https://github.com/deploystackio/docker-to-iac/compare/v1.22.1...v1.22.2) (2025-04-25)
 
 ### Features

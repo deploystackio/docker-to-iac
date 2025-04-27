@@ -1,6 +1,6 @@
 {
   "name": "@deploystack/docker-to-iac",
-  "version": "1.22.2",
+  "version": "1.23.0",
   "main": "dist/src/index.js",
   "scripts": {
     "pretest:e2e": "find test/e2e/output -mindepth 1 -not -name 'README.md' -delete",
