@@ -5,6 +5,7 @@ import { runTest2 } from './test2';
 import { runTest3 } from './test3';
 import { runTest4 } from './test4';
 import { runTest5 } from './test5';
+import { runTest6 } from './test6';
 
 // Constants for directories
 const OUTPUT_DIR = join(__dirname, 'output');
@@ -47,6 +48,10 @@ async function runAllTests() {
   // Run Test 5: Portkey Gateway Port and Image Verification
   const test5Passed = await runTest5();
   testResults.push({ testName: 'Test 5: Portkey Gateway Port and Image Verification', passed: test5Passed });
+
+  // Run Test 6: Helm Chart Linting
+  const test6Passed = await runTest6();
+  testResults.push({ testName: 'Test 6: Helm Chart Linting', passed: test6Passed });
 
   // Print summary
   console.log('\n=== Test Summary ===');

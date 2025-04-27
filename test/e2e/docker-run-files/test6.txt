@@ -1,0 +1,9 @@
+docker run -d \
+  --name webapp \
+  -p 8080:80 \
+  -e APP_NAME="Helm Linting Test" \
+  -e APP_VERSION="1.0.0" \
+  -e DEBUG=false \
+  -v app-data:/app/data \
+  nginx:alpine
+  

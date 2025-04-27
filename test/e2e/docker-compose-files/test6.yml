@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    environment:
+      APP_NAME: "Helm Linting Test"
+      APP_VERSION: "1.0.0"
+      DEBUG: "false"
+    volumes:
+      - app-data:/app/data
+  
+  api:
+    image: node:16-alpine
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: "production"
+      API_KEY: "sample-key-for-testing"
+    command: node server.js
+
+volumes:
+  app-data:
