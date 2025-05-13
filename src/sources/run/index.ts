@@ -36,11 +36,11 @@ export class RunCommandParser implements SourceParser {
     
     while (i < parts.length) {
       const arg = parts[i];
-
+    
       // If we haven't found the image yet and the argument starts with a dash,
       // it's an option
       if (!imageFound && arg.startsWith('-')) {
-        switch (arg) {
+        switch (arg.split('=')[0]) {
           case '-p':
           case '--publish':
             if (i + 1 < parts.length) {
@@ -50,7 +50,7 @@ export class RunCommandParser implements SourceParser {
               }
             }
             break;
-
+    
           case '-e':
           case '--env':
             if (i + 1 < parts.length) {
@@ -58,7 +58,7 @@ export class RunCommandParser implements SourceParser {
               config.environment = { ...config.environment, ...envVar };
             }
             break;
-
+    
           case '-v':
           case '--volume':
             if (i + 1 < parts.length) {
@@ -66,11 +66,23 @@ export class RunCommandParser implements SourceParser {
               config.volumes.push(volume);
             }
             break;
-
+    
+          case '--restart':
+            if (arg.includes('=')) {
+              // Handle --restart=value format
+              config.restart = arg.split('=')[1];
+            } else if (i + 1 < parts.length) {
+              // Handle --restart value format
+              config.restart = parts[++i];
+            }
+            break;
+    
           default:
             // Some flags take arguments, some don't
             if (arg === '--rm' || arg === '-d' || arg === '--detach') {
               // These are standalone flags - don't skip anything
+            } else if (arg.includes('=')) {
+              // Handle flag=value format - don't skip anything
             } else if (i + 1 < parts.length && !parts[i + 1].startsWith('-')) {
               // This option likely has a value - skip it
               i++;
