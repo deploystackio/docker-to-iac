@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.23.1](https://github.com/deploystackio/docker-to-iac/compare/v1.23.0...v1.23.1) (2025-05-13)
+### Chores
+
+* chore: bump @typescript-eslint/parser from 8.31.1 to 8.32.0 [dc6ecee]
+* chore: bump @typescript-eslint/eslint-plugin from 8.31.1 to 8.32.0 [fb91a1c]
+* chore: bump @types/node from 22.15.3 to 22.15.17 [8c76503]
+* chore: bump @vitest/coverage-v8 from 3.1.2 to 3.1.3 [125695d]
+* chore: bump globals from 16.0.0 to 16.1.0 [1730356]
+* chore: bump @types/node from 22.15.2 to 22.15.3 [acbe493]
+* chore: bump eslint from 9.25.1 to 9.26.0 [fe0e1f7]
+* chore: bump @eslint/js from 9.25.1 to 9.26.0 [79af2f9]
+* chore: bump release-it from 19.0.1 to 19.0.2 [003142f]
+* chore: bump @typescript-eslint/parser from 8.31.0 to 8.31.1 [62392a5]
+* chore: bump @typescript-eslint/eslint-plugin from 8.31.0 to 8.31.1 [b2b2714]
+* chore: bump vite from 6.3.3 to 6.3.4 [fe73691]
+* chore: bump azure/setup-helm from 3 to 4 [1731c15]
+* chore: bump @typescript-eslint/parser from 8.30.1 to 8.31.0 [a9e9677]
+* chore: bump eslint from 9.25.0 to 9.25.1 [7cfd090]
+* chore: bump @vitest/coverage-v8 from 3.1.1 to 3.1.2 [68afd39]
+* chore: bump @types/node from 22.14.1 to 22.15.2 [e93ec45]
+
 # [1.23.0](https://github.com/deploystackio/docker-to-iac/compare/v1.22.2...v1.23.0) (2025-04-27)
 
 ### Features
