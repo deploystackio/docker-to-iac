@@ -34,7 +34,6 @@ class CloudFormationParser extends BaseParser {
   }
 
   parseFiles(config: ApplicationConfig): { [path: string]: FileOutput } {
-    let response: any = {};
     const parameters: any = {};
     const resources: any = {};
 
@@ -176,7 +175,7 @@ class CloudFormationParser extends BaseParser {
       };
     }
 
-    response = {
+    const response: any = {
       AWSTemplateFormatVersion: '2010-09-09',
       Description: 'Generated from container configuration by docker-to-iac',
       Parameters: parameters,

@@ -20,8 +20,11 @@ export default [{
         "**/dist/",
         "test/output/",
         "test/sample-docker-compose.yml",
+        ".release-it.js",
     ],
 }, ...compat.extends("eslint:recommended", "plugin:@typescript-eslint/recommended"), {
+    files: ["src/**/*.ts", "test/**/*.ts"],
+
     plugins: {
         "@typescript-eslint": typescriptEslint,
     },
