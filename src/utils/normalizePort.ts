@@ -14,9 +14,8 @@ export function normalizePort(portMapping: string): PortConfig {
   // Extract protocol if present
   let protocol: string | undefined;
   if (processedPort.includes('/')) {
-    const [portPart, protocolPart] = processedPort.split('/');
+    const [, protocolPart] = processedPort.split('/');
     protocol = protocolPart;
-    portMapping = portPart;
   }
 
   // Split port mapping
